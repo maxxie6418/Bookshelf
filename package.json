@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "wrangler dev",
     "build": "vite build",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.web.json --noEmit",
     "migrate": "wrangler d1 execute bookshelf --local --file=./migrations/0000_init.sql",
     "seed": "node scripts/seed-local.mjs",
     "db:migrations:apply": "wrangler d1 migrations apply DB --remote",

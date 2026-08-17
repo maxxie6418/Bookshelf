@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
-import { verifyPassword } from '../lib/auth';
+import { verifyPassword, hashPassword } from '../lib/auth';
 import {
   signSession,
   verifySession,
@@ -93,4 +93,25 @@ authRoutes.get('/me', async (c) => {
     return c.json({ error: { code: 'INVALID_CREDENTIALS', message: '未登录' } }, 401);
   }
   return c.json({ data: publicUser(user) });
+});
+
+// 修改口令（首登强改 + 设置面板共用；需登录）
+authRoutes.post('/password', async (c) => {
+  const token = readSessionCookie(c.req.header('Cookie'));
+  const payload = await verifySession(c.env, token);
+  if (!payload) {
+    return c.json({ error: { code: 'INVALID_CREDENTIALS', message: '未登录' } }, 401);
+  }
+  const body = await c.req.json().catch(() => null);
+  const parsed = z.object({ new_password: z.string().min(6, '口令至少 6 位') }).safeParse(body);
+  if (!parsed.success) {
+    return c.json({ error: { code: 'VALIDATION_ERROR', message: parsed.error.issues[0]?.message ?? '参数错误' } }, 400);
+  }
+  const hash = await hashPassword(parsed.data.new_password);
+  await c.env.DB.prepare(
+    "UPDATE users SET password_hash = ?, must_change_password = 0, updated_at = datetime('now') WHERE id = ?",
+  )
+    .bind(hash, payload.uid)
+    .run();
+  return c.json({ data: { success: true } });
 });

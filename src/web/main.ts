@@ -1,5 +1,22 @@
-import './style.css';
+// SPA 入口
+import { api } from './api';
+import { setState, state } from './state';
+import { renderLogin } from './components/login';
+import { mountAppShell } from './components/app-shell';
+import { initTheme } from './components/settings-panel';
 
-// M0 占位前端：仅验证 SPA 构建与 Workers Assets 托管链路。
-// 后续里程碑（M2）在此接入书架界面与 API 客户端。
-console.info('[bookshelf] web skeleton loaded');
+const root = document.getElementById('app') as HTMLElement;
+
+async function boot() {
+  initTheme();
+  try {
+    const user = await api.me();
+    setState({ authed: true, user });
+    mountAppShell(root);
+  } catch {
+    state.authed = false;
+    renderLogin(root);
+  }
+}
+
+void boot();
