@@ -9,7 +9,9 @@
     "typecheck": "tsc --noEmit",
     "migrate": "wrangler d1 execute bookshelf --local --file=./migrations/0000_init.sql",
     "seed": "node scripts/seed-local.mjs",
-    "deploy": "node scripts/setup.mjs"
+    "db:migrations:apply": "wrangler d1 migrations apply DB --remote",
+    "deploy": "npm run db:migrations:apply && wrangler deploy",
+    "setup": "node scripts/setup.mjs"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
