@@ -26,7 +26,12 @@ export function h<K extends keyof HTMLElementTagNameMap>(
 }
 
 export function toast(message: string, type: 'success' | 'error' = 'success') {
-  const container = document.getElementById('toast-root');
+  let container = document.getElementById('toast-root');
+  if (!container) {
+    // 登录页等场景没有 toast 容器时自动创建
+    container = h('div', { id: 'toast-root', class: 'fixed bottom-4 right-4 z-[60] space-y-2 pointer-events-none' });
+    document.body.append(container);
+  }
   const el = h(
     'div',
     {
@@ -36,7 +41,7 @@ export function toast(message: string, type: 'success' | 'error' = 'success') {
     },
     message,
   );
-  container?.append(el);
+  container.append(el);
   setTimeout(() => el.remove(), 2600);
 }
 
