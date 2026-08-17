@@ -4,9 +4,9 @@
 
 ## 一键部署
 
-[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/<你的用户名>/<你的仓库名>)
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/maxxie6418/Bookshelf)
 
-> 把上面的仓库 URL 替换成你推送到 GitHub 后的地址。点击按钮会：克隆仓库到你的账号 → 自动创建并绑定 D1 / R2 / KV → 读取 `.dev.vars.example` 让你在向导里填写 secret（`SESSION_SECRET` / `INITIAL_ADMIN_PASSWORD` / AI 密钥）→ 自动跑 D1 迁移 + 构建 + 部署。首次请求会自动 seed 初始管理员（口令即你填写的 `INITIAL_ADMIN_PASSWORD`，首登强制修改）。
+> 点击按钮会：克隆仓库到你的账号 → 自动创建并绑定 D1 / R2 / KV → 读取 `.dev.vars.example` 让你在向导里填写 secret（`SESSION_SECRET` / `INITIAL_ADMIN_PASSWORD` / AI 密钥）→ 自动跑 D1 迁移 + 构建 + 部署。首次请求会自动 seed 初始管理员（口令即你填写的 `INITIAL_ADMIN_PASSWORD`，首登强制修改）。
 
 ## 技术栈
 
