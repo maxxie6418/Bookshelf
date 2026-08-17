@@ -59,4 +59,5 @@ export interface Filters {
   tag?: string;
   q?: string;
   sort?: string;
+  trash?: boolean;
 }
