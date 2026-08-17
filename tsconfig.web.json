@@ -3,8 +3,8 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "lib": ["ES2022"],
-    "types": ["@cloudflare/workers-types"],
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": [],
     "strict": true,
     "noEmit": true,
     "skipLibCheck": true,
@@ -14,6 +14,5 @@
     "useDefineForClassFields": true,
     "verbatimModuleSyntax": false
   },
-  "include": ["src", "scripts", "vite.config.ts"],
-  "exclude": ["src/web"]
+  "include": ["src/web"]
 }
