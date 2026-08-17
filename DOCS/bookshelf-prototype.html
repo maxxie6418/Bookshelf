@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的书架 | Bookshelf</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        serif: ['Noto Serif SC', 'Georgia', 'serif'],
+                    },
+                    colors: {
+                        shelf: {
+                            50: '#faf9f7',
+                            100: '#f5f3ef',
+                            200: '#e8e4dc',
+                            300: '#d4cfc4',
+                            400: '#b0a99a',
+                            500: '#8a8274',
+                            600: '#6b6458',
+                            700: '#4a453d',
+                            800: '#2d2a26',
+                            900: '#1a1816',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #d4cfc4; border-radius: 3px; }
+        .dark ::-webkit-scrollbar-thumb { background: #4a453d; }
+        .book-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .book-card:hover { transform: translateY(-4px); }
+        .cover-pattern-1 { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .cover-pattern-2 { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+        .cover-pattern-3 { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+        .cover-pattern-4 { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
+        .cover-pattern-5 { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
+        .cover-pattern-6 { background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); }
+        .cover-pattern-7 { background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%); }
+        .cover-pattern-8 { background: linear-gradient(135deg, #fbc2eb 0%, #a6c1ee 100%); }
+        .cover-pattern-9 { background: linear-gradient(135deg, #fdcbf1 0%, #e6dee9 100%); }
+        .cover-pattern-10 { background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%); }
+        .cover-pattern-11 { background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%); }
+        .cover-pattern-12 { background: linear-gradient(135deg, #ff8a80 0%, #ea6100 100%); }
+        @keyframes pulse-soft { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+        .status-reading { animation: pulse-soft 2s ease-in-out infinite; }
+        .modal-backdrop { backdrop-filter: blur(8px); }
+        .view-grid .book-card { opacity: 0; animation: fadeInUp 0.4s ease forwards; }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        .view-grid .book-card:nth-child(1) { animation-delay: 0.02s; }
+        .view-grid .book-card:nth-child(2) { animation-delay: 0.04s; }
+        .view-grid .book-card:nth-child(3) { animation-delay: 0.06s; }
+        .view-grid .book-card:nth-child(4) { animation-delay: 0.08s; }
+        .view-grid .book-card:nth-child(5) { animation-delay: 0.10s; }
+        .view-grid .book-card:nth-child(6) { animation-delay: 0.12s; }
+        .view-grid .book-card:nth-child(7) { animation-delay: 0.14s; }
+        .view-grid .book-card:nth-child(8) { animation-delay: 0.16s; }
+        .view-grid .book-card:nth-child(9) { animation-delay: 0.18s; }
+        .view-grid .book-card:nth-child(10) { animation-delay: 0.20s; }
+        .view-grid .book-card:nth-child(11) { animation-delay: 0.22s; }
+        .view-grid .book-card:nth-child(12) { animation-delay: 0.24s; }
+        .table-row { transition: background-color 0.15s ease; }
+        .table-row:hover { background-color: rgba(0,0,0,0.02); }
+        .dark .table-row:hover { background-color: rgba(255,255,255,0.03); }
+        @media (max-width: 1024px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.open { transform: translateX(0); }
+        }
+        .fab { box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
+    </style>
+</head>
+<body class="bg-shelf-50 text-shelf-800 dark:bg-shelf-900 dark:text-shelf-200 font-sans antialiased transition-colors duration-300">
+
+    <nav class="sticky top-0 z-40 bg-white/80 dark:bg-shelf-800/80 backdrop-blur-xl border-b border-shelf-200 dark:border-shelf-700 transition-colors duration-300">
+        <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center gap-3">
+                    <button id="menuToggle" class="lg:hidden p-2 rounded-lg hover:bg-shelf-100 dark:hover:bg-shelf-700 transition-colors">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+                    </button>
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg">
+                            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                        </div>
+                        <span class="text-lg font-bold tracking-tight font-serif">我的书架</span>
+                    </div>
+                </div>
+                <div class="hidden md:flex flex-1 max-w-xl mx-8">
+                    <div class="relative w-full">
+                        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-shelf-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        <input type="text" id="searchInput" placeholder="搜索书名、作者、ISBN..." class="w-full pl-10 pr-4 py-2 rounded-xl bg-shelf-100 dark:bg-shelf-700 border-0 text-sm focus:ring-2 focus:ring-amber-500/50 focus:bg-white dark:focus:bg-shelf-600 transition-all placeholder:text-shelf-400">
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="themeToggle" class="p-2 rounded-lg hover:bg-shelf-100 dark:hover:bg-shelf-700 transition-colors" title="切换主题">
+                        <svg id="sunIcon" class="w-5 h-5 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                        <svg id="moonIcon" class="w-5 h-5 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+                    </button>
+                    <div class="hidden sm:flex items-center bg-shelf-100 dark:bg-shelf-700 rounded-lg p-1">
+                        <button id="viewGrid" class="p-1.5 rounded-md bg-white dark:bg-shelf-600 shadow-sm transition-all" title="网格视图">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+                        </button>
+                        <button id="viewTable" class="p-1.5 rounded-md hover:bg-white/50 dark:hover:bg-shelf-600/50 transition-all" title="表格视图">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                        </button>
+                    </div>
+                    <button onclick="openAddModal()" class="hidden sm:flex items-center gap-2 px-4 py-2 bg-shelf-800 dark:bg-amber-500 text-white dark:text-shelf-900 rounded-lg hover:bg-shelf-700 dark:hover:bg-amber-400 transition-all font-medium text-sm shadow-lg shadow-shelf-800/20">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        <span>添加书籍</span>
+                    </button>
+                </div>
+            </div>
+            <div class="md:hidden pb-3">
+                <div class="relative">
+                    <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-shelf-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    <input type="text" id="searchInputMobile" placeholder="搜索书名、作者..." class="w-full pl-10 pr-4 py-2 rounded-xl bg-shelf-100 dark:bg-shelf-700 border-0 text-sm focus:ring-2 focus:ring-amber-500/50 transition-all placeholder:text-shelf-400">
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-[1600px] mx-auto flex">
+        <aside id="sidebar" class="sidebar fixed lg:sticky lg:top-16 left-0 top-0 h-screen lg:h-[calc(100vh-4rem)] w-64 bg-white dark:bg-shelf-800 border-r border-shelf-200 dark:border-shelf-700 z-30 overflow-y-auto transition-transform duration-300 lg:translate-x-0">
+            <div class="p-5 space-y-6">
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="bg-shelf-50 dark:bg-shelf-700/50 rounded-xl p-3 text-center">
+                        <div class="text-2xl font-bold text-shelf-800 dark:text-white font-serif">42</div>
+                        <div class="text-xs text-shelf-500 dark:text-shelf-400 mt-0.5">总藏书</div>
+                    </div>
+                    <div class="bg-shelf-50 dark:bg-shelf-700/50 rounded-xl p-3 text-center">
+                        <div class="text-2xl font-bold text-amber-600 dark:text-amber-400 font-serif">7</div>
+                        <div class="text-xs text-shelf-500 dark:text-shelf-400 mt-0.5">在读</div>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-xs font-semibold text-shelf-400 uppercase tracking-wider mb-3">阅读状态</h3>
+                    <div class="space-y-1" id="statusFilters">
+                        <button class="status-filter w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors bg-shelf-100 dark:bg-shelf-700 font-medium" data-status="all">
+                            <span class="flex items-center gap-2.5"><span class="w-2 h-2 rounded-full bg-shelf-400"></span>全部书籍</span>
+                            <span class="text-xs text-shelf-400 font-mono">42</span>
+                        </button>
+                        <button class="status-filter w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors hover:bg-shelf-50 dark:hover:bg-shelf-700/50" data-status="reading">
+                            <span class="flex items-center gap-2.5"><span class="w-2 h-2 rounded-full bg-emerald-500 status-reading"></span>正在阅读</span>
+                            <span class="text-xs text-shelf-400 font-mono">7</span>
+                        </button>
+                        <button class="status-filter w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors hover:bg-shelf-50 dark:hover:bg-shelf-700/50" data-status="finished">
+                            <span class="flex items-center gap-2.5"><span class="w-2 h-2 rounded-full bg-amber-500"></span>已读完</span>
+                            <span class="text-xs text-shelf-400 font-mono">18</span>
+                        </button>
+                        <button class="status-filter w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors hover:bg-shelf-50 dark:hover:bg-shelf-700/50" data-status="wish">
+                            <span class="flex items-center gap-2.5"><span class="w-2 h-2 rounded-full bg-sky-500"></span>计划阅读</span>
+                            <span class="text-xs text-shelf-400 font-mono">12</span>
+                        </button>
+                        <button class="status-filter w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors hover:bg-shelf-50 dark:hover:bg-shelf-700/50" data-status="dropped">
+                            <span class="flex items-center gap-2.5"><span class="w-2 h-2 rounded-full bg-rose-400"></span>已搁置</span>
+                            <span class="text-xs text-shelf-400 font-mono">3</span>
+                        </button>
+                        <button class="status-filter w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors hover:bg-shelf-50 dark:hover:bg-shelf-700/50" data-status="archived">
+                            <span class="flex items-center gap-2.5"><span class="w-2 h-2 rounded-full bg-shelf-300"></span>已归档</span>
+                            <span class="text-xs text-shelf-400 font-mono">2</span>
+                        </button>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-xs font-semibold text-shelf-400 uppercase tracking-wider">分类</h3>
+                        <button class="text-xs text-amber-600 dark:text-amber-400 hover:underline">管理</button>
+                    </div>
+                    <div class="space-y-1" id="categoryFilters">
+                        <button class="category-filter w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors hover:bg-shelf-50 dark:hover:bg-shelf-700/50" data-category="文学">
+                            <span class="flex items-center gap-2.5"><span class="w-2.5 h-2.5 rounded" style="background:#e11d48"></span>文学小说</span>
+                            <span class="text-xs text-shelf-400 font-mono">15</span>
+                        </button>
+                        <button class="category-filter w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors hover:bg-shelf-50 dark:hover:bg-shelf-700/50" data-category="社科">
+                            <span class="flex items-center gap-2.5"><span class="w-2.5 h-2.5 rounded" style="background:#2563eb"></span>社会科学</span>
+                            <span class="text-xs text-shelf-400 font-mono">9</span>
+                        </button>
+                        <button class="category-filter w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors hover:bg-shelf-50 dark:hover:bg-shelf-700/50" data-category="科技">
+                            <span class="flex items-center gap-2.5"><span class="w-2.5 h-2.5 rounded" style="background:#059669"></span>科技编程</span>
+                            <span class="text-xs text-shelf-400 font-mono">8</span>
+                        </button>
+                        <button class="category-filter w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors hover:bg-shelf-50 dark:hover:bg-shelf-700/50" data-category="历史">
+                            <span class="flex items-center gap-2.5"><span class="w-2.5 h-2.5 rounded" style="background:#d97706"></span>历史人文</span>
+                            <span class="text-xs text-shelf-400 font-mono">6</span>
+                        </button>
+                        <button class="category-filter w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors hover:bg-shelf-50 dark:hover:bg-shelf-700/50" data-category="哲学">
+                            <span class="flex items-center gap-2.5"><span class="w-2.5 h-2.5 rounded" style="background:#7c3aed"></span>哲学思辨</span>
+                            <span class="text-xs text-shelf-400 font-mono">4</span>
+                        </button>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-xs font-semibold text-shelf-400 uppercase tracking-wider mb-3">热门标签</h3>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="px-2.5 py-1 rounded-full text-xs bg-shelf-100 dark:bg-shelf-700 text-shelf-600 dark:text-shelf-300 cursor-pointer hover:bg-shelf-200 dark:hover:bg-shelf-600 transition-colors">经典</span>
+                        <span class="px-2.5 py-1 rounded-full text-xs bg-shelf-100 dark:bg-shelf-700 text-shelf-600 dark:text-shelf-300 cursor-pointer hover:bg-shelf-200 dark:hover:bg-shelf-600 transition-colors">2024新书</span>
+                        <span class="px-2.5 py-1 rounded-full text-xs bg-shelf-100 dark:bg-shelf-700 text-shelf-600 dark:text-shelf-300 cursor-pointer hover:bg-shelf-200 dark:hover:bg-shelf-600 transition-colors">推荐</span>
+                        <span class="px-2.5 py-1 rounded-full text-xs bg-shelf-100 dark:bg-shelf-700 text-shelf-600 dark:text-shelf-300 cursor-pointer hover:bg-shelf-200 dark:hover:bg-shelf-600 transition-colors">重读</span>
+                        <span class="px-2.5 py-1 rounded-full text-xs bg-shelf-100 dark:bg-shelf-700 text-shelf-600 dark:text-shelf-300 cursor-pointer hover:bg-shelf-200 dark:hover:bg-shelf-600 transition-colors">豆瓣高分</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <div id="sidebarOverlay" class="fixed inset-0 bg-black/30 z-20 hidden lg:hidden modal-backdrop"></div>
+
+        <main class="flex-1 min-w-0">
+            <div class="sticky top-16 z-30 bg-shelf-50/80 dark:bg-shelf-900/80 backdrop-blur-lg border-b border-shelf-200 dark:border-shelf-700 px-4 sm:px-6 lg:px-8 py-3">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <h2 id="currentViewTitle" class="text-lg font-semibold font-serif">全部书籍</h2>
+                        <span id="bookCount" class="text-sm text-shelf-400">42 本</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-shelf-400 hidden sm:inline">排序：</span>
+                        <select id="sortSelect" class="text-sm bg-white dark:bg-shelf-800 border border-shelf-200 dark:border-shelf-700 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-amber-500/50 outline-none">
+                            <option value="recent">最近添加</option>
+                            <option value="title">书名</option>
+                            <option value="author">作者</option>
+                            <option value="rating">评分</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div id="gridView" class="view-grid p-4 sm:p-6 lg:p-8">
+                <div id="booksGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 sm:gap-5 lg:gap-6"></div>
+            </div>
+
+            <div id="tableView" class="hidden p-4 sm:p-6 lg:p-8">
+                <div class="bg-white dark:bg-shelf-800 rounded-xl border border-shelf-200 dark:border-shelf-700 overflow-hidden shadow-sm">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b border-shelf-200 dark:border-shelf-700 text-left text-xs text-shelf-500 dark:text-shelf-400 uppercase tracking-wider">
+                                    <th class="px-4 py-3 font-medium">封面</th>
+                                    <th class="px-4 py-3 font-medium">书名</th>
+                                    <th class="px-4 py-3 font-medium">作者</th>
+                                    <th class="px-4 py-3 font-medium">状态</th>
+                                    <th class="px-4 py-3 font-medium">分类</th>
+                                    <th class="px-4 py-3 font-medium">评分</th>
+                                    <th class="px-4 py-3 font-medium">添加时间</th>
+                                    <th class="px-4 py-3 font-medium text-right">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="booksTable" class="divide-y divide-shelf-100 dark:divide-shelf-700/50"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <button onclick="openAddModal()" class="fab sm:hidden fixed bottom-6 right-6 w-14 h-14 bg-shelf-800 dark:bg-amber-500 text-white dark:text-shelf-900 rounded-full flex items-center justify-center shadow-2xl z-40 hover:scale-105 transition-transform">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+    </button>
+
+    <div id="detailModal" class="fixed inset-0 z-50 hidden">
+        <div class="modal-backdrop absolute inset-0 bg-black/40 dark:bg-black/60 transition-opacity duration-300 opacity-0" id="detailBackdrop" onclick="closeDetailModal()"></div>
+        <div class="absolute top-0 right-0 h-full w-full sm:w-[480px] lg:w-[520px] bg-white dark:bg-shelf-800 shadow-2xl transform translate-x-full transition-transform duration-300 ease-out pointer-events-auto overflow-y-auto" id="detailDrawer">
+            <div id="detailContent"></div>
+        </div>
+    </div>
+
+    <div id="addModal" class="fixed inset-0 z-50 hidden">
+        <div class="modal-backdrop absolute inset-0 bg-black/40 dark:bg-black/60" onclick="closeAddModal()"></div>
+        <div class="absolute inset-0 flex items-center justify-center p-4 pointer-events-none">
+            <div class="bg-white dark:bg-shelf-800 rounded-2xl shadow-2xl max-w-lg w-full pointer-events-auto transform transition-all scale-95 opacity-0" id="addModalContent">
+                <div class="p-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-xl font-bold font-serif">添加书籍</h3>
+                        <button onclick="closeAddModal()" class="p-1 rounded-lg hover:bg-shelf-100 dark:hover:bg-shelf-700 transition-colors">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-1.5">豆瓣链接</label>
+                            <div class="flex gap-2">
+                                <input type="url" placeholder="https://book.douban.com/subject/..." class="flex-1 px-3 py-2 rounded-lg bg-shelf-50 dark:bg-shelf-700 border border-shelf-200 dark:border-shelf-600 text-sm focus:ring-2 focus:ring-amber-500/50 outline-none">
+                                <button class="px-4 py-2 bg-amber-500 text-white rounded-lg text-sm font-medium hover:bg-amber-600 transition-colors">抓取</button>
+                            </div>
+                            <p class="text-xs text-shelf-400 mt-1">粘贴豆瓣书籍链接，自动获取元数据</p>
+                        </div>
+                        <div class="relative">
+                            <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-shelf-200 dark:border-shelf-700"></div></div>
+                            <div class="relative flex justify-center text-xs"><span class="px-2 bg-white dark:bg-shelf-800 text-shelf-400">或手动录入</span></div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1.5">书名 <span class="text-rose-500">*</span></label>
+                            <input type="text" placeholder="输入书名" class="w-full px-3 py-2 rounded-lg bg-shelf-50 dark:bg-shelf-700 border border-shelf-200 dark:border-shelf-600 text-sm focus:ring-2 focus:ring-amber-500/50 outline-none">
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-sm font-medium mb-1.5">作者</label>
+                                <input type="text" placeholder="作者姓名" class="w-full px-3 py-2 rounded-lg bg-shelf-50 dark:bg-shelf-700 border border-shelf-200 dark:border-shelf-600 text-sm focus:ring-2 focus:ring-amber-500/50 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1.5">出版社</label>
+                                <input type="text" placeholder="出版社名称" class="w-full px-3 py-2 rounded-lg bg-shelf-50 dark:bg-shelf-700 border border-shelf-200 dark:border-shelf-600 text-sm focus:ring-2 focus:ring-amber-500/50 outline-none">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-sm font-medium mb-1.5">状态</label>
+                                <select class="w-full px-3 py-2 rounded-lg bg-shelf-50 dark:bg-shelf-700 border border-shelf-200 dark:border-shelf-600 text-sm focus:ring-2 focus:ring-amber-500/50 outline-none">
+                                    <option value="wish">计划阅读</option>
+                                    <option value="reading">正在阅读</option>
+                                    <option value="finished">已读完</option>
+                                    <option value="dropped">已搁置</option>
+                                    <option value="archived">已归档</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1.5">分类</label>
+                                <select class="w-full px-3 py-2 rounded-lg bg-shelf-50 dark:bg-shelf-700 border border-shelf-200 dark:border-shelf-600 text-sm focus:ring-2 focus:ring-amber-500/50 outline-none">
+                                    <option>文学小说</option>
+                                    <option>社会科学</option>
+                                    <option>科技编程</option>
+                                    <option>历史人文</option>
+                                    <option>哲学思辨</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1.5">标签</label>
+                            <input type="text" placeholder="输入标签，按回车添加" class="w-full px-3 py-2 rounded-lg bg-shelf-50 dark:bg-shelf-700 border border-shelf-200 dark:border-shelf-600 text-sm focus:ring-2 focus:ring-amber-500/50 outline-none">
+                        </div>
+                    </div>
+                    <div class="flex gap-3 mt-6">
+                        <button onclick="closeAddModal()" class="flex-1 px-4 py-2.5 border border-shelf-200 dark:border-shelf-600 rounded-lg text-sm font-medium hover:bg-shelf-50 dark:hover:bg-shelf-700 transition-colors">取消</button>
+                        <button onclick="closeAddModal()" class="flex-1 px-4 py-2.5 bg-shelf-800 dark:bg-amber-500 text-white dark:text-shelf-900 rounded-lg text-sm font-medium hover:bg-shelf-700 dark:hover:bg-amber-400 transition-colors shadow-lg shadow-shelf-800/20">确认添加</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+
+        const books = [
+            { id: 1, title: "百年孤独", subtitle: "Cien a\u00f1os de soledad", author: "加西亚·马尔克斯", publisher: "南海出版公司", isbn: "9787544253994", pageCount: 360, description: "《百年孤独》是魔幻现实主义文学的代表作，描写了布恩迪亚家族七代人的传奇故事，以及加勒比海沿岸小镇马孔多的百年兴衰。", coverPattern: 1, status: "finished", rating: 5, category: "文学", categoryColor: "#e11d48", tags: ["经典", "魔幻现实主义", "诺贝尔奖"], sourceType: "douban", createdAt: "2024-01-15" },
+            { id: 2, title: "三体", subtitle: "地球往事三部曲之一", author: "刘慈欣", publisher: "重庆出版社", isbn: "9787536692930", pageCount: 302, description: "文化大革命如火如荼进行的同时，军方探寻外星文明的绝秘计划\"红岸工程\"取得了突破性进展。", coverPattern: 2, status: "finished", rating: 5, category: "文学", categoryColor: "#e11d48", tags: ["科幻", "雨果奖", "系列"], sourceType: "douban", createdAt: "2024-02-03" },
+            { id: 3, title: "人类简史", subtitle: "从动物到上帝", author: "尤瓦尔·赫拉利", publisher: "中信出版社", isbn: "9787508647357", pageCount: 440, description: "十万年前，地球上至少有六种不同的人，但今日，世界舞台为什么只剩下了我们自己？", coverPattern: 3, status: "reading", rating: 4, category: "历史", categoryColor: "#d97706", tags: ["畅销书", "历史", "大历史观"], sourceType: "douban", createdAt: "2024-03-12" },
+            { id: 4, title: "设计模式", subtitle: "可复用面向对象软件的基础", author: "Erich Gamma 等", publisher: "机械工业出版社", isbn: "9787111075752", pageCount: 254, description: "本书结合设计实例从面向对象的设计中精选出23个设计模式，总结了面向对象设计中最有价值的经验。", coverPattern: 4, status: "reading", rating: 5, category: "科技", categoryColor: "#059669", tags: ["编程", "经典", "计算机"], sourceType: "manual", createdAt: "2024-03-20" },
+            { id: 5, title: "挪威的森林", subtitle: "", author: "村上春树", publisher: "上海译文出版社", isbn: "9787532742936", pageCount: 376, description: "这是一部动人心弦的、平缓舒雅的、略带感伤的恋爱小说。", coverPattern: 5, status: "finished", rating: 4, category: "文学", categoryColor: "#e11d48", tags: ["日本文学", "爱情", "青春"], sourceType: "douban", createdAt: "2024-01-28" },
+            { id: 6, title: "思考，快与慢", subtitle: "", author: "丹尼尔·卡尼曼", publisher: "中信出版社", isbn: "9787508633558", pageCount: 499, description: "卡尼曼介绍了很多经典有趣的行为实验，指出我们在什么情况下可以相信自己的直觉，什么时候不能相信。", coverPattern: 6, status: "wish", rating: null, category: "社科", categoryColor: "#2563eb", tags: ["心理学", "思维", "行为经济学"], sourceType: "douban", createdAt: "2024-04-05" },
+            { id: 7, title: "深入理解计算机系统", subtitle: "Computer Systems: A Programmer's Perspective", author: "Randal E. Bryant", publisher: "机械工业出版社", isbn: "9787111544937", pageCount: 737, description: "本书主要介绍了计算机系统的基本概念，包括最底层的内存中的数据表示、流水线指令的构成等。", coverPattern: 7, status: "reading", rating: 5, category: "科技", categoryColor: "#059669", tags: ["计算机", "硬核", "经典教材"], sourceType: "manual", createdAt: "2024-04-18" },
+            { id: 8, title: "苏菲的世界", subtitle: "", author: "乔斯坦·贾德", publisher: "作家出版社", isbn: "9787506341271", pageCount: 535, description: "14岁的少女苏菲某天放学回家，发现了神秘的一封信。—你是谁？—世界从哪里来？", coverPattern: 8, status: "finished", rating: 4, category: "哲学", categoryColor: "#7c3aed", tags: ["哲学入门", "小说", "西方哲学"], sourceType: "douban", createdAt: "2024-02-14" },
+            { id: 9, title: "明朝那些事儿", subtitle: "", author: "当年明月", publisher: "中国友谊出版公司", isbn: "9787505722460", pageCount: 300, description: "这篇文主要讲述的是从1344年到1644年这三百年间关于明朝的一些事情，以史料为基础，以年代和具体人物为主线。", coverPattern: 9, status: "finished", rating: 5, category: "历史", categoryColor: "#d97706", tags: ["历史", "明朝", "通俗历史"], sourceType: "douban", createdAt: "2024-01-08" },
+            { id: 10, title: "Clean Code", subtitle: "代码整洁之道", author: "Robert C. Martin", publisher: "电子工业出版社", isbn: "9787121086922", pageCount: 388, description: "本书提出一种观念：代码质量与其整洁度成正比。干净的代码，既在质量上较为可靠，也为后期维护、升级奠定了良好基础。", coverPattern: 10, status: "finished", rating: 4, category: "科技", categoryColor: "#059669", tags: ["编程", "代码规范", "软件工程"], sourceType: "manual", createdAt: "2024-03-01" },
+            { id: 11, title: "活着", subtitle: "", author: "余华", publisher: "作家出版社", isbn: "9787506365437", pageCount: 195, description: "《活着》讲述了农村人福贵悲惨的人生遭遇。福贵本是个阔少爷，可他嗜赌如命，终于赌光了家业，一贫如洗。", coverPattern: 11, status: "finished", rating: 5, category: "文学", categoryColor: "#e11d48", tags: ["经典", "中国当代文学", "人生"], sourceType: "douban", createdAt: "2024-01-20" },
+            { id: 12, title: "枪炮、病菌与钢铁", subtitle: "人类社会的命运", author: "贾雷德·戴蒙德", publisher: "上海译文出版社", isbn: "9787532739233", pageCount: 482, description: "为什么是欧亚大陆人征服、赶走或大批杀死印第安人、澳大利亚人和非洲人，而不是相反？", coverPattern: 12, status: "wish", rating: null, category: "社科", categoryColor: "#2563eb", tags: ["人类学", "历史", "地理"], sourceType: "douban", createdAt: "2024-05-01" },
+            { id: 13, title: "黑客与画家", subtitle: "", author: "Paul Graham", publisher: "人民邮电出版社", isbn: "9787115249494", pageCount: 271, description: "本书是硅谷创业之父Paul Graham 的文集，主要介绍黑客即优秀程序员的爱好和动机。", coverPattern: 1, status: "finished", rating: 4, category: "科技", categoryColor: "#059669", tags: ["创业", "编程", "硅谷"], sourceType: "manual", createdAt: "2024-02-22" },
+            { id: 14, title: "万历十五年", subtitle: "1587, A Year of No Significance", author: "黄仁宇", publisher: "中华书局", isbn: "9787101052039", pageCount: 280, description: "万历十五年，亦即公元1587年，在西欧历史上为西班牙舰队全部出动征英的前一年。", coverPattern: 2, status: "reading", rating: 5, category: "历史", categoryColor: "#d97706", tags: ["历史", "明朝", "大历史观"], sourceType: "douban", createdAt: "2024-04-10" },
+            { id: 15, title: "月亮与六便士", subtitle: "The Moon and Sixpence", author: "毛姆", publisher: "上海译文出版社", isbn: "9787532742936", pageCount: 294, description: "一个英国证券交易所的经纪人，本已有牢靠的职业和地位、美满的家庭，但却迷恋上绘画，像\"被魔鬼附了体\"，突然弃家出走。", coverPattern: 3, status: "finished", rating: 4, category: "文学", categoryColor: "#e11d48", tags: ["英国文学", "艺术", "人生选择"], sourceType: "douban", createdAt: "2024-02-08" },
+            { id: 16, title: "影响力", subtitle: "Influence: The Psychology of Persuasion", author: "罗伯特·西奥迪尼", publisher: "中国人民大学出版社", isbn: "9787300071419", pageCount: 340, description: "在这本书中，心理学家罗伯特·B·西奥迪尼博士为我们解释了为什么有些人极具说服力，而我们总是容易上当受骗。", coverPattern: 4, status: "wish", rating: null, category: "社科", categoryColor: "#2563eb", tags: ["心理学", "说服", "社交"], sourceType: "douban", createdAt: "2024-05-12" },
+            { id: 17, title: "程序员的职业素养", subtitle: "The Clean Coder", author: "Robert C. Martin", publisher: "人民邮电出版社", isbn: "9787115283567", pageCount: 216, description: "本书是编程大师 Bob 大叔 40 余年编程生涯的心得体会的总结，讲解成为真正专业的程序员需要什么样的态度、原则。", coverPattern: 5, status: "reading", rating: 4, category: "科技", categoryColor: "#059669", tags: ["职业发展", "软件工程", "编程"], sourceType: "manual", createdAt: "2024-05-15" },
+            { id: 18, title: "西方哲学史", subtitle: "", author: "罗素", publisher: "商务印书馆", isbn: "9787100004822", pageCount: 800, description: "本书是英国现代数学家、哲学家伯特兰·罗素创作的讲述西方哲学发展历史的著作。", coverPattern: 6, status: "dropped", rating: 3, category: "哲学", categoryColor: "#7c3aed", tags: ["哲学", "大部头", "西方哲学"], sourceType: "manual", createdAt: "2024-01-05" },
+            { id: 19, title: "红楼梦", subtitle: "", author: "曹雪芹", publisher: "人民文学出版社", isbn: "9787020002207", pageCount: 1200, description: "《红楼梦》是一部具有世界影响力的人情小说，举世公认的中国古典小说巅峰之作。", coverPattern: 7, status: "archived", rating: 5, category: "文学", categoryColor: "#e11d48", tags: ["经典", "四大名著", "古典文学"], sourceType: "douban", createdAt: "2023-12-20" },
+            { id: 20, title: "邓小平时代", subtitle: "", author: "傅高义", publisher: "生活·读书·新知三联书店", isbn: "9787108041531", pageCount: 688, description: "本书对邓小平跌宕起伏的一生以及中国惊险崎岖的改革开放之路进行了全景式描述。", coverPattern: 8, status: "finished", rating: 5, category: "历史", categoryColor: "#d97706", tags: ["传记", "当代中国", "政治"], sourceType: "douban", createdAt: "2024-03-25" },
+            { id: 21, title: "JavaScript高级程序设计", subtitle: "Professional JavaScript for Web Developers", author: "Matt Frisbie", publisher: "人民邮电出版社", isbn: "9787115545381", pageCount: 800, description: "本书是JavaScript开发者必备的经典教程，全面深入地介绍了JavaScript语言的各个方面。", coverPattern: 9, status: "reading", rating: 5, category: "科技", categoryColor: "#059669", tags: ["前端", "JavaScript", "编程"], sourceType: "manual", createdAt: "2024-04-28" },
+            { id: 22, title: "局外人", subtitle: "L'\u00c9tranger", author: "加缪", publisher: "上海译文出版社", isbn: "9787532742936", pageCount: 128, description: "《局外人》是法国作家加缪的成名作，同时也是存在主义文学的杰出作品之一。", coverPattern: 10, status: "finished", rating: 4, category: "文学", categoryColor: "#e11d48", tags: ["法国文学", "存在主义", "哲学"], sourceType: "douban", createdAt: "2024-02-18" },
+            { id: 23, title: "社会契约论", subtitle: "Du contrat social", author: "卢梭", publisher: "商务印书馆", isbn: "9787100018189", pageCount: 226, description: "《社会契约论》分为四卷：第一卷论述了社会结构和社会契约，第二卷阐述主权及其权利。", coverPattern: 11, status: "wish", rating: null, category: "哲学", categoryColor: "#7c3aed", tags: ["政治哲学", "经典", "启蒙"], sourceType: "manual", createdAt: "2024-05-20" },
+            { id: 24, title: "你当像鸟飞往你的山", subtitle: "Educated", author: "塔拉·韦斯特弗", publisher: "南海出版公司", isbn: "9787544276986", pageCount: 388, description: "人们只看到我的与众不同：一个十七岁前从未踏入教室的大山女孩，却戴上一顶学历的高帽，熠熠生辉。", coverPattern: 12, status: "finished", rating: 4, category: "文学", categoryColor: "#e11d48", tags: ["传记", "教育", "成长"], sourceType: "douban", createdAt: "2024-03-08" },
+        ];
+
+        const statusConfig = {
+            wish: { label: "计划阅读", color: "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400", dot: "bg-sky-500" },
+            reading: { label: "正在阅读", color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400", dot: "bg-emerald-500" },
+            finished: { label: "已读完", color: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400", dot: "bg-amber-500" },
+            dropped: { label: "已搁置", color: "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400", dot: "bg-rose-400" },
+            archived: { label: "已归档", color: "bg-shelf-100 text-shelf-600 dark:bg-shelf-700 dark:text-shelf-400", dot: "bg-shelf-300" }
+        };
+
+        let currentView = 'grid';
+        let currentFilter = { status: 'all', category: null, search: '' };
+        let currentSort = 'recent';
+
+        function getFilteredBooks() {
+            let filtered = books;
+            if (currentFilter.status !== 'all') {
+                filtered = filtered.filter(b => b.status === currentFilter.status);
+            }
+            if (currentFilter.category) {
+                filtered = filtered.filter(b => b.category === currentFilter.category);
+            }
+            if (currentFilter.search) {
+                const s = currentFilter.search.toLowerCase();
+                filtered = filtered.filter(b => b.title.toLowerCase().includes(s) || b.author.toLowerCase().includes(s) || b.isbn.includes(s));
+            }
+            filtered = [...filtered];
+            if (currentSort === 'title') {
+                filtered.sort((a, b) => a.title.localeCompare(b.title, 'zh'));
+            } else if (currentSort === 'author') {
+                filtered.sort((a, b) => a.author.localeCompare(b.author, 'zh'));
+            } else if (currentSort === 'rating') {
+                filtered.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+            } else {
+                filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            }
+            return filtered;
+        }
+
+        function renderStars(rating) {
+            if (!rating) return '<span class="text-shelf-300 text-xs">未评分</span>';
+            let html = '';
+            for (let i = 1; i <= 5; i++) {
+                if (i <= rating) {
+                    html += '<svg class="w-3.5 h-3.5 text-amber-400 fill-current" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>';
+                } else {
+                    html += '<svg class="w-3.5 h-3.5 text-shelf-200 dark:text-shelf-700 fill-current" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>';
+                }
+            }
+            return html;
+        }
+
+        function renderGrid() {
+            const container = document.getElementById('booksGrid');
+            const filtered = getFilteredBooks();
+            document.getElementById('bookCount').textContent = filtered.length + ' 本';
+            container.innerHTML = filtered.map(book => {
+                const status = statusConfig[book.status];
+                return `<div class="book-card group cursor-pointer" onclick="openDetailModal(${book.id})">
+                    <div class="relative aspect-[3/4] rounded-xl overflow-hidden shadow-md group-hover:shadow-xl transition-shadow mb-3">
+                        <div class="cover-pattern-${book.coverPattern} w-full h-full flex items-center justify-center">
+                            <span class="text-white/90 font-serif text-lg font-bold text-center px-4 leading-relaxed drop-shadow-lg">${book.title}</span>
+                        </div>
+                        ${book.status === 'reading' ? '<div class="absolute top-2 right-2 w-3 h-3 rounded-full bg-emerald-400 shadow-lg shadow-emerald-400/50 status-reading border-2 border-white dark:border-shelf-800"></div>' : ''}
+                        <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors"></div>
+                    </div>
+                    <div class="space-y-1.5">
+                        <h3 class="font-semibold text-sm leading-tight line-clamp-1 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">${book.title}</h3>
+                        <p class="text-xs text-shelf-500 dark:text-shelf-400 line-clamp-1">${book.author}</p>
+                        <div class="flex items-center gap-2 pt-0.5">
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${status.color}">
+                                <span class="w-1 h-1 rounded-full ${status.dot}"></span>${status.label}
+                            </span>
+                            ${book.rating ? `<span class="flex items-center gap-0.5">${renderStars(book.rating)}</span>` : ''}
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+            if (filtered.length === 0) {
+                container.innerHTML = `<div class="col-span-full flex flex-col items-center justify-center py-20 text-shelf-400">
+                    <svg class="w-16 h-16 mb-4 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                    <p class="text-sm">没有找到符合条件的书籍</p>
+                </div>`;
+            }
+        }
+
+        function renderTable() {
+            const container = document.getElementById('booksTable');
+            const filtered = getFilteredBooks();
+            document.getElementById('bookCount').textContent = filtered.length + ' 本';
+            container.innerHTML = filtered.map(book => {
+                const status = statusConfig[book.status];
+                return `<tr class="table-row cursor-pointer" onclick="openDetailModal(${book.id})">
+                    <td class="px-4 py-3"><div class="w-10 h-14 rounded-md overflow-hidden shadow-sm"><div class="cover-pattern-${book.coverPattern} w-full h-full flex items-center justify-center"><span class="text-white/80 text-[8px] font-bold text-center px-1 leading-tight">${book.title.slice(0,2)}</span></div></div></td>
+                    <td class="px-4 py-3"><div class="font-medium text-sm">${book.title}</div><div class="text-xs text-shelf-400 mt-0.5">${book.subtitle || ''}</div></td>
+                    <td class="px-4 py-3 text-sm text-shelf-600 dark:text-shelf-300">${book.author}</td>
+                    <td class="px-4 py-3"><span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${status.color}"><span class="w-1.5 h-1.5 rounded-full ${status.dot}"></span>${status.label}</span></td>
+                    <td class="px-4 py-3"><span class="inline-flex items-center gap-1.5 text-xs"><span class="w-2 h-2 rounded-sm" style="background:${book.categoryColor}"></span>${book.category}</span></td>
+                    <td class="px-4 py-3"><div class="flex items-center gap-1">${renderStars(book.rating)}</div></td>
+                    <td class="px-4 py-3 text-xs text-shelf-400">${book.createdAt}</td>
+                    <td class="px-4 py-3 text-right"><button class="p-1.5 rounded-lg hover:bg-shelf-100 dark:hover:bg-shelf-700 transition-colors text-shelf-400 hover:text-shelf-600"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button></td>
+                </tr>`;
+            }).join('');
+            if (filtered.length === 0) {
+                container.innerHTML = `<tr><td colspan="8" class="px-4 py-16 text-center text-shelf-400 text-sm">没有找到符合条件的书籍</td></tr>`;
+            }
+        }
+
+        function render() {
+            if (currentView === 'grid') { renderGrid(); }
+            else { renderTable(); }
+        }
+
+        function openDetailModal(bookId) {
+            const book = books.find(b => b.id === bookId);
+            if (!book) return;
+            const status = statusConfig[book.status];
+            const content = document.getElementById('detailContent');
+            content.innerHTML = `<div class="relative">
+                <div class="h-56 sm:h-64 cover-pattern-${book.coverPattern} relative overflow-hidden">
+                    <div class="absolute inset-0 bg-black/20"></div>
+                    <div class="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/60 to-transparent">
+                        <h2 class="text-2xl sm:text-3xl font-bold text-white font-serif drop-shadow-lg">${book.title}</h2>
+                        ${book.subtitle ? `<p class="text-white/80 text-sm mt-1">${book.subtitle}</p>` : ''}
+                    </div>
+                    <button onclick="closeDetailModal()" class="absolute top-4 right-4 p-2 rounded-full bg-black/20 hover:bg-black/40 text-white transition-colors backdrop-blur-sm">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+                <div class="p-6 space-y-6">
+                    <div class="flex flex-wrap items-center gap-3">
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium ${status.color}"><span class="w-2 h-2 rounded-full ${status.dot}"></span>${status.label}</span>
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm bg-shelf-100 dark:bg-shelf-700 text-shelf-600 dark:text-shelf-300"><span class="w-2 h-2 rounded-sm" style="background:${book.categoryColor}"></span>${book.category}</span>
+                        ${book.rating ? `<span class="flex items-center gap-1">${renderStars(book.rating)}</span>` : ''}
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div><div class="text-xs text-shelf-400 mb-1">作者</div><div class="font-medium">${book.author}</div></div>
+                        <div><div class="text-xs text-shelf-400 mb-1">出版社</div><div class="font-medium">${book.publisher}</div></div>
+                        <div><div class="text-xs text-shelf-400 mb-1">ISBN</div><div class="font-medium font-mono text-xs">${book.isbn}</div></div>
+                        <div><div class="text-xs text-shelf-400 mb-1">页数</div><div class="font-medium">${book.pageCount} 页</div></div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-shelf-400 mb-2">简介</div>
+                        <p class="text-sm leading-relaxed text-shelf-600 dark:text-shelf-300">${book.description}</p>
+                    </div>
+                    <div>
+                        <div class="text-xs text-shelf-400 mb-2">标签</div>
+                        <div class="flex flex-wrap gap-2">
+                            ${book.tags.map(tag => `<span class="px-2.5 py-1 rounded-full text-xs bg-shelf-100 dark:bg-shelf-700 text-shelf-600 dark:text-shelf-300">${tag}</span>`).join('')}
+                        </div>
+                    </div>
+                    <div class="flex gap-3 pt-2 pb-4">
+                        <button onclick="closeDetailModal()" class="flex-1 px-4 py-2.5 border border-shelf-200 dark:border-shelf-600 rounded-lg text-sm font-medium hover:bg-shelf-50 dark:hover:bg-shelf-700 transition-colors">关闭</button>
+                        <button onclick="closeDetailModal()" class="flex-1 px-4 py-2.5 bg-shelf-800 dark:bg-amber-500 text-white dark:text-shelf-900 rounded-lg text-sm font-medium hover:bg-shelf-700 dark:hover:bg-amber-400 transition-colors">编辑</button>
+                    </div>
+                </div>
+            </div>`;
+            const modal = document.getElementById('detailModal');
+            const backdrop = document.getElementById('detailBackdrop');
+            const drawer = document.getElementById('detailDrawer');
+            modal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+            setTimeout(() => {
+                backdrop.classList.remove('opacity-0');
+                backdrop.classList.add('opacity-100');
+                drawer.classList.remove('translate-x-full');
+                drawer.classList.add('translate-x-0');
+            }, 10);
+        }
+
+        function closeDetailModal() {
+            const modal = document.getElementById('detailModal');
+            const backdrop = document.getElementById('detailBackdrop');
+            const drawer = document.getElementById('detailDrawer');
+            backdrop.classList.remove('opacity-100');
+            backdrop.classList.add('opacity-0');
+            drawer.classList.remove('translate-x-0');
+            drawer.classList.add('translate-x-full');
+            document.body.style.overflow = '';
+            setTimeout(() => { modal.classList.add('hidden'); }, 300);
+        }
+
+        function openAddModal() {
+            const modal = document.getElementById('addModal');
+            const modalContent = document.getElementById('addModalContent');
+            modal.classList.remove('hidden');
+            setTimeout(() => { modalContent.classList.remove('scale-95', 'opacity-0'); modalContent.classList.add('scale-100', 'opacity-100'); }, 10);
+        }
+
+        function closeAddModal() {
+            const modal = document.getElementById('addModal');
+            const modalContent = document.getElementById('addModalContent');
+            modalContent.classList.remove('scale-100', 'opacity-100');
+            modalContent.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => { modal.classList.add('hidden'); }, 200);
+        }
+
+        document.getElementById('menuToggle').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.toggle('open');
+            document.getElementById('sidebarOverlay').classList.toggle('hidden');
+        });
+        document.getElementById('sidebarOverlay').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.remove('open');
+            document.getElementById('sidebarOverlay').classList.add('hidden');
+        });
+
+        document.getElementById('themeToggle').addEventListener('click', () => {
+            document.documentElement.classList.toggle('dark');
+        });
+
+        document.getElementById('viewGrid').addEventListener('click', () => {
+            currentView = 'grid';
+            document.getElementById('gridView').classList.remove('hidden');
+            document.getElementById('tableView').classList.add('hidden');
+            document.getElementById('viewGrid').classList.add('bg-white', 'dark:bg-shelf-600', 'shadow-sm');
+            document.getElementById('viewGrid').classList.remove('hover:bg-white/50', 'dark:hover:bg-shelf-600/50');
+            document.getElementById('viewTable').classList.remove('bg-white', 'dark:bg-shelf-600', 'shadow-sm');
+            document.getElementById('viewTable').classList.add('hover:bg-white/50', 'dark:hover:bg-shelf-600/50');
+            render();
+        });
+
+        document.getElementById('viewTable').addEventListener('click', () => {
+            currentView = 'table';
+            document.getElementById('gridView').classList.add('hidden');
+            document.getElementById('tableView').classList.remove('hidden');
+            document.getElementById('viewTable').classList.add('bg-white', 'dark:bg-shelf-600', 'shadow-sm');
+            document.getElementById('viewTable').classList.remove('hover:bg-white/50', 'dark:hover:bg-shelf-600/50');
+            document.getElementById('viewGrid').classList.remove('bg-white', 'dark:bg-shelf-600', 'shadow-sm');
+            document.getElementById('viewGrid').classList.add('hover:bg-white/50', 'dark:hover:bg-shelf-600/50');
+            render();
+        });
+
+        document.getElementById('sortSelect').addEventListener('change', (e) => {
+            currentSort = e.target.value;
+            render();
+        });
+
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            currentFilter.search = e.target.value;
+            render();
+        });
+        document.getElementById('searchInputMobile').addEventListener('input', (e) => {
+            currentFilter.search = e.target.value;
+            render();
+        });
+
+        document.querySelectorAll('.status-filter').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.status-filter').forEach(b => {
+                    b.classList.remove('bg-shelf-100', 'dark:bg-shelf-700', 'font-medium');
+                    b.classList.add('hover:bg-shelf-50', 'dark:hover:bg-shelf-700/50');
+                });
+                btn.classList.add('bg-shelf-100', 'dark:bg-shelf-700', 'font-medium');
+                btn.classList.remove('hover:bg-shelf-50', 'dark:hover:bg-shelf-700/50');
+                currentFilter.status = btn.dataset.status;
+                const titles = { all: '全部书籍', reading: '正在阅读', finished: '已读完', wish: '计划阅读', dropped: '已搁置', archived: '已归档' };
+                document.getElementById('currentViewTitle').textContent = titles[currentFilter.status];
+                render();
+            });
+        });
+
+        document.querySelectorAll('.category-filter').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const isActive = btn.classList.contains('bg-shelf-100') || btn.classList.contains('dark:bg-shelf-700');
+                document.querySelectorAll('.category-filter').forEach(b => {
+                    b.classList.remove('bg-shelf-100', 'dark:bg-shelf-700', 'font-medium');
+                    b.classList.add('hover:bg-shelf-50', 'dark:hover:bg-shelf-700/50');
+                });
+                if (!isActive) {
+                    btn.classList.add('bg-shelf-100', 'dark:bg-shelf-700', 'font-medium');
+                    btn.classList.remove('hover:bg-shelf-50', 'dark:hover:bg-shelf-700/50');
+                    currentFilter.category = btn.dataset.category;
+                    document.getElementById('currentViewTitle').textContent = btn.querySelector('span').textContent.trim();
+                } else {
+                    currentFilter.category = null;
+                    document.getElementById('currentViewTitle').textContent = '全部书籍';
+                }
+                render();
+            });
+        });
+
+        render();
+    </script>
+</body>
+</html>
