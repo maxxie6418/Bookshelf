@@ -5,6 +5,7 @@ dist/
 *.log
 .DS_Store
 .workbuddy/
+.tmp/
 # 本地自测产物
 admin-pwd.txt
 seed.out
