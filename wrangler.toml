@@ -11,6 +11,7 @@ APP_NAME = "Bookshelf"
 [[d1_databases]]
 binding = "DB"
 database_name = "bookshelf"
+database_id = "01234567-89ab-cdef-0123-456789abcdef"  # 本地 dev 占位。真部署前请 `wrangler d1 create bookshelf` 并替换。
 migrations_dir = "migrations"
 
 [[r2_buckets]]
@@ -19,7 +20,7 @@ bucket_name = "bookshelf-covers"
 
 [[kv_namespaces]]
 binding = "KV"
-id = "REPLACE_WITH_KV_ID"   # 运行 `wrangler kv namespace create bookshelf-kv` 后填入
+id = "0123456789abcdef0123456789abcdef"   # 本地 dev 占位（合法 hex）。真部署前请运行 `wrangler kv namespace create bookshelf-kv` 并替换为真实 id。
 
 # Secrets（不要写进仓库）：用 `wrangler secret put` 设置
 #   SESSION_SECRET      签名会话 Cookie 的 HMAC 密钥（必填）

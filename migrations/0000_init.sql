@@ -1,5 +1,5 @@
 -- 账户（单行，单用户）
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   username TEXT,
   display_name TEXT,
@@ -11,7 +11,7 @@ CREATE TABLE users (
 );
 
 -- 书籍（核心实体；软删用 deleted_at）
-CREATE TABLE books (
+CREATE TABLE IF NOT EXISTS books (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   title TEXT NOT NULL,
   author TEXT,
@@ -37,41 +37,41 @@ CREATE TABLE books (
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
-CREATE INDEX idx_books_status ON books(status);
-CREATE INDEX idx_books_category ON books(category_id);
-CREATE INDEX idx_books_updated ON books(updated_at);
-CREATE INDEX idx_books_isbn ON books(isbn);
-CREATE INDEX idx_books_deleted ON books(deleted_at);
+CREATE INDEX IF NOT EXISTS idx_books_status ON books(status);
+CREATE INDEX IF NOT EXISTS idx_books_category ON books(category_id);
+CREATE INDEX IF NOT EXISTS idx_books_updated ON books(updated_at);
+CREATE INDEX IF NOT EXISTS idx_books_isbn ON books(isbn);
+CREATE INDEX IF NOT EXISTS idx_books_deleted ON books(deleted_at);
 
 -- 分类
-CREATE TABLE categories (
+CREATE TABLE IF NOT EXISTS categories (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
   color TEXT NOT NULL DEFAULT '#8a8274'
 );
 
 -- 标签
-CREATE TABLE tags (
+CREATE TABLE IF NOT EXISTS tags (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL UNIQUE
 );
 
 -- 书籍-标签多对多（物理删级联）
-CREATE TABLE book_tags (
+CREATE TABLE IF NOT EXISTS book_tags (
   book_id INTEGER NOT NULL REFERENCES books(id) ON DELETE CASCADE,
   tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
   PRIMARY KEY (book_id, tag_id)
 );
 
 -- 设置（非密钥配置）
-CREATE TABLE settings (
+CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value TEXT,
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 -- AI 查询日志（可选，M4）
-CREATE TABLE ai_query_log (
+CREATE TABLE IF NOT EXISTS ai_query_log (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   query_text TEXT,
   filter_json TEXT,
