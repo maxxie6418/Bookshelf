@@ -8,7 +8,7 @@ function readIds() {
   const out = {};
   if (!existsSync(CONFIG)) return out;
   for (const line of readFileSync(CONFIG, 'utf8').split('\n')) {
-    const m = line.match(/^\s*([A-Z_]+)\s*=\s*(.+?)\s*$/);
+    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.+?)\s*$/);
     if (m && !m[2].trim().startsWith('#') && m[2].trim() !== '') out[m[1]] = m[2].trim();
   }
   return out;
@@ -35,5 +35,9 @@ try {
   execSync('npx wrangler deploy --config wrangler.prod.toml', { stdio: 'inherit' });
   console.log('[deploy] 完成。');
 } finally {
-  rmSync('wrangler.prod.toml', { force: true });
+  try {
+    rmSync('wrangler.prod.toml', { force: true });
+  } catch {
+    // 清理临时文件失败不影响部署结果（wrangler.prod.toml 已 gitignore）
+  }
 }
