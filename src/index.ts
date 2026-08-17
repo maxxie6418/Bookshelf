@@ -2,12 +2,18 @@ import { Hono } from 'hono';
 import type { Env } from './env';
 import { authRoutes } from './api/auth';
 import { healthRoutes } from './api/health';
+import { booksRoutes } from './api/books';
+import { categoriesRoutes } from './api/categories';
+import { tagsRoutes } from './api/tags';
 import { ensureAdmin } from './lib/bootstrap';
 
-// M0 仅挂载 health / auth；后续里程碑按模块挂载 books / categories / tags / metadata / query / export / import。
+// M0–M1：health / auth / books / categories / tags；M3+ 追加 metadata / query / export / import。
 const app = new Hono<{ Bindings: Env }>();
 app.route('/api/health', healthRoutes);
 app.route('/api/auth', authRoutes);
+app.route('/api/books', booksRoutes);
+app.route('/api/categories', categoriesRoutes);
+app.route('/api/tags', tagsRoutes);
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
