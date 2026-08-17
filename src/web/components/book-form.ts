@@ -2,12 +2,12 @@
 import { api } from '../api';
 import { state } from '../state';
 import type { Book } from '../types';
-import { h, toast, modal } from '../ui';
+import { h, toast, modal, iconSearch } from '../ui';
 import { refresh, refreshSidebar } from '../refresh';
 
 const inputCls =
-  'w-full px-3.5 py-2 rounded-xl border border-shelf-200 dark:border-shelf-700 dark:bg-shelf-900 dark:text-shelf-50 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50 bg-shelf-50 dark:bg-shelf-700';
-const labelCls = 'block text-xs text-shelf-500 dark:text-shelf-400 mb-1.5';
+  'w-full px-3.5 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 placeholder:text-[var(--text-muted)] transition-colors';
+const labelCls = 'block text-xs text-[var(--text-secondary)] mb-1.5';
 
 export function openBookForm(book?: Book) {
   const isEdit = !!book;
@@ -46,9 +46,9 @@ export function openBookForm(book?: Book) {
   const fetchBar = h('div', { class: 'flex gap-2' },
     doubanUrl,
     h('button', {
-      class: 'shrink-0 px-3 py-2 rounded-xl border border-shelf-200 dark:border-shelf-700 text-sm text-shelf-600 dark:text-shelf-300 hover:bg-shelf-100 dark:hover:bg-shelf-700 transition-colors',
+      class: 'shrink-0 px-3 py-2 rounded-xl border border-[var(--border-default)] text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] transition-colors inline-flex items-center gap-1.5',
       onclick: () => void doFetch(doubanUrl.value),
-    }, '抓取'),
+    }, iconSearch(16), '抓取'),
   );
 
   const grid2 = (a: HTMLElement, b: HTMLElement) => h('div', { class: 'grid grid-cols-2 gap-3' }, a, b);
@@ -59,12 +59,12 @@ export function openBookForm(book?: Book) {
     h('div', {},
       h('label', { class: labelCls }, '豆瓣链接'),
       fetchBar,
-      h('p', { class: 'text-xs text-shelf-400 mt-1' }, '粘贴豆瓣书籍链接，自动获取元数据'),
+      h('p', { class: 'text-xs text-[var(--text-muted)] mt-1' }, '粘贴豆瓣书籍链接，自动获取元数据'),
     ),
     // 分隔线
     h('div', { class: 'relative' },
-      h('div', { class: 'absolute inset-0 flex items-center' }, h('div', { class: 'w-full border-t border-shelf-200 dark:border-shelf-700' })),
-      h('div', { class: 'relative flex justify-center text-xs' }, h('span', { class: 'px-2 bg-white dark:bg-shelf-800 text-shelf-400' }, '或手动录入')),
+      h('div', { class: 'absolute inset-0 flex items-center' }, h('div', { class: 'w-full border-t border-[var(--border-subtle)]' })),
+      h('div', { class: 'relative flex justify-center text-xs' }, h('span', { class: 'px-2 bg-[var(--bg-surface)] text-[var(--text-muted)]' }, '或手动录入')),
     ),
     field('书名 *', title),
     grid2(field('作者', author), field('译者', translator)),
@@ -76,9 +76,9 @@ export function openBookForm(book?: Book) {
     field('封面 URL', coverUrl),
     field('简介', description),
     h('div', { class: 'flex justify-end gap-3 pt-2' },
-      h('button', { class: 'px-4 py-2 rounded-xl text-shelf-600 dark:text-shelf-300 hover:bg-shelf-100 dark:hover:bg-shelf-700 text-sm transition-colors', onclick: () => document.body.lastElementChild?.remove() }, '取消'),
+      h('button', { class: 'px-4 py-2 rounded-xl text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] text-sm transition-colors', onclick: () => document.body.lastElementChild?.remove() }, '取消'),
       h('button', {
-        class: 'px-5 py-2 rounded-xl bg-shelf-800 dark:bg-amber-500 text-white dark:text-shelf-900 text-sm font-medium hover:bg-shelf-700 dark:hover:bg-amber-400 transition-colors shadow-lg shadow-shelf-800/20',
+        class: 'px-5 py-2 rounded-xl bg-[var(--accent)] text-[var(--accent-text)] text-sm font-medium hover:bg-[var(--accent-hover)] transition-colors shadow-lg shadow-[var(--accent)]/20',
         onclick: async () => {
           const payload: Record<string, unknown> = {
             title: title.value.trim(),
