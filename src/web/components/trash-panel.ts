@@ -2,7 +2,7 @@
 import { api } from '../api';
 import { state } from '../state';
 import type { Book } from '../types';
-import { h, toast, confirmDialog } from '../ui';
+import { h, toast, confirmDialog, iconTrash } from '../ui';
 import { refresh } from '../refresh';
 
 export function renderTrash(container: HTMLElement) {
@@ -28,8 +28,8 @@ export function renderTrash(container: HTMLElement) {
   main.append(
     h('div', { class: 'flex items-center justify-between mb-4' },
       h('div', { class: 'flex items-center gap-3' },
-        h('h2', { class: 'text-lg font-semibold font-serif text-shelf-900 dark:text-shelf-50' }, '回收站'),
-        h('span', { class: 'text-sm text-shelf-400' }, `共 ${state.total} 本，彻底删除后不可恢复`),
+        h('h2', { class: 'text-lg font-semibold font-display text-[var(--text-primary)]' }, '回收站'),
+        h('span', { class: 'text-sm text-[var(--text-muted)]' }, `共 ${state.total} 本，彻底删除后不可恢复`),
       ),
       clearBtn,
     ),
@@ -37,13 +37,11 @@ export function renderTrash(container: HTMLElement) {
 
   const list = h('div', { class: 'space-y-2' });
   if (state.loading) {
-    list.append(h('div', { class: 'text-center text-shelf-400 py-10' }, '加载中…'));
+    list.append(h('div', { class: 'text-center text-[var(--text-muted)] py-10' }, '加载中…'));
   } else if (!state.books.length) {
     list.append(
-      h('div', { class: 'col-span-full flex flex-col items-center justify-center py-20 text-shelf-400' },
-        h('svg', { class: 'w-16 h-16 mb-4 opacity-30', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' },
-          h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '1.5', d: 'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16' }),
-        ),
+      h('div', { class: 'col-span-full flex flex-col items-center justify-center py-20 text-[var(--text-muted)]' },
+        h('span', { class: 'mb-4 opacity-30' }, iconTrash(64)),
         h('p', { class: 'text-sm' }, '回收站是空的'),
       ),
     );
@@ -57,13 +55,13 @@ export function renderTrash(container: HTMLElement) {
 }
 
 function trashRow(b: Book): HTMLElement {
-  return h('div', { class: 'flex items-center gap-4 bg-white dark:bg-shelf-800 rounded-xl p-3.5 shadow-sm border border-shelf-200 dark:border-shelf-700' },
+  return h('div', { class: 'flex items-center gap-4 bg-[var(--bg-surface)] rounded-xl p-3.5 shadow-sm border border-[var(--border-default)]' },
     h('div', { class: 'flex-1 min-w-0' },
-      h('p', { class: 'font-medium text-shelf-900 dark:text-shelf-50 truncate' }, b.title),
-      h('p', { class: 'text-xs text-shelf-500 mt-0.5' }, `${b.author ?? ''}${b.deleted_at ? ' · 删除于 ' + new Date(b.deleted_at).toLocaleDateString() : ''}`),
+      h('p', { class: 'font-medium text-[var(--text-primary)] truncate' }, b.title),
+      h('p', { class: 'text-xs text-[var(--text-secondary)] mt-0.5' }, `${b.author ?? ''}${b.deleted_at ? ' · 删除于 ' + new Date(b.deleted_at).toLocaleDateString() : ''}`),
     ),
     h('button', {
-      class: 'px-3.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-sm transition-colors',
+      class: 'px-3.5 py-1.5 rounded-lg bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text)] text-sm transition-colors',
       onclick: async () => {
         try {
           await api.restore(b.id);

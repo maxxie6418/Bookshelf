@@ -2,7 +2,7 @@
 import { api } from '../api';
 import { setState, state } from '../state';
 import type { Book } from '../types';
-import { h, toast, getCoverPattern, renderStars } from '../ui';
+import { h, toast, renderCoverPlaceholder, renderStars, iconList, iconGrid, iconEdit, iconPlus, iconBookOpen } from '../ui';
 import { renderDrawer } from './detail-drawer';
 import { openBookForm } from './book-form';
 import { refresh } from '../refresh';
@@ -10,19 +10,16 @@ import { refresh } from '../refresh';
 const STATUS_LABEL: Record<string, string> = { unread: '未读', reading: '在读', finished: '读完' };
 
 const STATUS_META: Record<string, { label: string; dot: string; bg: string; text: string }> = {
-  unread:   { label: '未读',   dot: 'bg-shelf-400',           bg: 'bg-shelf-100 dark:bg-shelf-700',           text: 'text-shelf-600 dark:text-shelf-400' },
-  reading:  { label: '在读',   dot: 'bg-emerald-500 status-reading-dot', bg: 'bg-emerald-100 dark:bg-emerald-900/30',  text: 'text-emerald-700 dark:text-emerald-400' },
-  finished: { label: '已读完', dot: 'bg-amber-500',           bg: 'bg-amber-100 dark:bg-amber-900/30',          text: 'text-amber-700 dark:text-amber-400' },
+  unread:   { label: '未读',   dot: 'bg-[var(--text-muted)]',                       bg: 'bg-[var(--bg-surface-hover)]',              text: 'text-[var(--text-secondary)]' },
+  reading:  { label: '在读',   dot: 'bg-[var(--accent)] status-reading-dot',       bg: 'bg-[var(--accent)]/10',                     text: 'text-[var(--accent)]' },
+  finished: { label: '已读完', dot: 'bg-[var(--accent)]',                            bg: 'bg-[var(--bg-surface-hover)]',              text: 'text-[var(--text-secondary)]' },
 };
 
-function coverEl(b: Book): HTMLElement {
+function coverEl(b: Book, size: 'grid' | 'table' = 'grid'): HTMLElement {
   if (b.cover_url) {
     return h('img', { src: b.cover_url, alt: b.title, class: 'w-full h-full object-cover', loading: 'lazy' });
   }
-  const pattern = getCoverPattern(b.title);
-  return h('div', { class: `cover-pattern-${pattern} w-full h-full flex items-center justify-center` },
-    h('span', { class: 'text-white/90 font-serif text-lg font-bold text-center px-4 leading-relaxed drop-shadow-lg line-clamp-2' }, b.title),
-  );
+  return renderCoverPlaceholder(b, size);
 }
 
 function statusBadge(b: Book): HTMLElement {
@@ -52,7 +49,7 @@ export function renderBookList(container: HTMLElement) {
 
   // 顶栏工具栏
   const sortSel = h('select', {
-    class: 'text-sm bg-white dark:bg-shelf-800 border border-shelf-200 dark:border-shelf-700 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-amber-500/50 outline-none',
+    class: 'text-sm bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-lg px-3 py-1.5 text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent)]/50 outline-none',
     onchange: () => {
       setState({ filters: { ...state.filters, sort: sortSel.value } });
       void refresh();
@@ -62,54 +59,41 @@ export function renderBookList(container: HTMLElement) {
     sortSel.append(h('option', { value: v, selected: (state.filters.sort ?? 'updated_desc') === v ? '' : null }, label));
   }
 
-  const viewToggle = h('div', { class: 'hidden sm:flex items-center bg-shelf-100 dark:bg-shelf-700 rounded-lg p-1' },
+  const viewToggle = h('div', { class: 'hidden sm:flex items-center bg-[var(--bg-page)] rounded-lg p-1' },
     h('button', {
-      class: 'p-1.5 rounded-md transition-all ' + (state.view === 'table'
-        ? 'bg-white dark:bg-shelf-600 shadow-sm'
-        : 'hover:bg-white/50 dark:hover:bg-shelf-600/50'),
+      class: 'p-1.5 rounded-md transition-all text-[var(--text-secondary)] ' + (state.view === 'table'
+        ? 'bg-[var(--bg-surface)] border border-[var(--border-default)] shadow-sm'
+        : 'hover:bg-[var(--bg-surface-hover)]'),
       title: '表格视图',
       onclick: () => setState({ view: 'table' }),
-    },
-      h('svg', { class: 'w-4 h-4', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' },
-        h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z' }),
-      ),
-    ),
+    }, iconList(18)),
     h('button', {
-      class: 'p-1.5 rounded-md transition-all ' + (state.view === 'grid'
-        ? 'bg-white dark:bg-shelf-600 shadow-sm'
-        : 'hover:bg-white/50 dark:hover:bg-shelf-600/50'),
+      class: 'p-1.5 rounded-md transition-all text-[var(--text-secondary)] ' + (state.view === 'grid'
+        ? 'bg-[var(--bg-surface)] border border-[var(--border-default)] shadow-sm'
+        : 'hover:bg-[var(--bg-surface-hover)]'),
       title: '网格视图',
       onclick: () => setState({ view: 'grid' }),
-    },
-      h('svg', { class: 'w-4 h-4', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' },
-        h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z' }),
-      ),
-    ),
+    }, iconGrid(18)),
   );
 
   const addBtn = h('button', {
-    class: 'hidden sm:flex items-center gap-2 px-4 py-2 bg-shelf-800 dark:bg-amber-500 text-white dark:text-shelf-900 rounded-lg hover:bg-shelf-700 dark:hover:bg-amber-400 transition-all font-medium text-sm shadow-lg shadow-shelf-800/20',
+    class: 'hidden sm:flex items-center gap-2 px-4 py-2 border border-[var(--accent)] text-[var(--accent)] rounded-lg hover:bg-[var(--accent)]/10 transition-all font-medium text-sm',
     onclick: () => openBookForm(),
-  },
-    h('svg', { class: 'w-4 h-4', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' },
-      h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M12 4v16m8-8H4' }),
-    ),
-    '添加书籍',
-  );
+  }, iconPlus(18), '添加书籍');
 
   // 当前视图标题
   const viewTitle = getViewTitle();
 
   main.append(
     // 列表头栏
-    h('div', { class: 'sticky top-16 z-30 bg-shelf-50/80 dark:bg-shelf-900/80 backdrop-blur-lg border-b border-shelf-200 dark:border-shelf-700 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-3 mb-4' },
+    h('div', { class: 'sticky top-16 z-30 bg-[var(--bg-page)]/80 backdrop-blur-lg border-b border-[var(--border-default)] -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-3 mb-4' },
       h('div', { class: 'flex items-center justify-between' },
         h('div', { class: 'flex items-center gap-3' },
-          h('h2', { class: 'text-lg font-semibold font-serif' }, viewTitle),
-          h('span', { class: 'text-sm text-shelf-400' }, `${state.total} 本`),
+          h('h2', { class: 'text-lg font-semibold font-display text-[var(--text-primary)]' }, viewTitle),
+          h('span', { class: 'text-sm text-[var(--text-muted)]' }, `${state.total} 本`),
         ),
         h('div', { class: 'flex items-center gap-2' },
-          h('span', { class: 'text-xs text-shelf-400 hidden sm:inline' }, '排序：'),
+          h('span', { class: 'text-xs text-[var(--text-muted)] hidden sm:inline' }, '排序：'),
           sortSel,
           viewToggle,
           addBtn,
@@ -125,13 +109,9 @@ export function renderBookList(container: HTMLElement) {
 
   // 移动端 FAB
   main.append(h('button', {
-    class: 'fab sm:hidden fixed bottom-6 right-6 z-30 w-14 h-14 bg-shelf-800 dark:bg-amber-500 text-white dark:text-shelf-900 rounded-full flex items-center justify-center shadow-2xl hover:scale-105 transition-transform',
+    class: 'fab sm:hidden fixed bottom-6 right-6 z-30 w-14 h-14 bg-[var(--accent)] text-[var(--accent-text)] rounded-full flex items-center justify-center shadow-2xl hover:scale-105 transition-transform',
     onclick: () => openBookForm(),
-  },
-    h('svg', { class: 'w-6 h-6', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' },
-      h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M12 4v16m8-8H4' }),
-    ),
-  ));
+  }, iconPlus(28)));
   container.append(main);
 }
 
@@ -150,21 +130,105 @@ function getViewTitle(): string {
   return '全部书籍';
 }
 
+function hasActiveFilters(): boolean {
+  const f = state.filters;
+  return !!(f.status || f.categoryId || f.tag || f.q);
+}
+
+function clearFilters() {
+  setState({ filters: { sort: state.filters.sort } });
+  void refresh();
+}
+
+function renderSkeletonGrid(): HTMLElement {
+  const grid = h('div', { class: 'view-grid grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 sm:gap-5 lg:gap-6' });
+  for (let i = 0; i < 12; i++) {
+    grid.append(
+      h('div', { class: 'flex flex-col gap-3' },
+        h('div', { class: 'w-full aspect-[3/4] rounded-lg skeleton' }),
+        h('div', { class: 'space-y-2' },
+          h('div', { class: 'h-3 w-3/4 rounded skeleton' }),
+          h('div', { class: 'h-2.5 w-1/2 rounded skeleton' }),
+          h('div', { class: 'h-2.5 w-1/3 rounded skeleton' }),
+        ),
+      ),
+    );
+  }
+  return grid;
+}
+
+function renderSkeletonTable(): HTMLElement {
+  const wrap = h('div', { class: 'bg-[var(--bg-surface)] rounded-xl border border-[var(--border-default)] overflow-hidden shadow-paper' });
+  const inner = h('div', { class: 'overflow-x-auto' });
+  const table = h('table', { class: 'w-full text-sm' });
+  const tbody = h('tbody');
+  for (let i = 0; i < 5; i++) {
+    const row = h('tr', { class: 'border-b border-[var(--border-subtle)] last:border-0' },
+      h('td', { class: 'px-4 py-4' }, h('div', { class: 'w-10 h-14 rounded-md skeleton' })),
+      h('td', { class: 'px-4 py-4' },
+        h('div', { class: 'space-y-2' },
+          h('div', { class: 'h-3 w-32 rounded skeleton' }),
+          h('div', { class: 'h-2.5 w-24 rounded skeleton' }),
+        ),
+      ),
+      h('td', { class: 'px-4 py-4' }, h('div', { class: 'h-3 w-20 rounded skeleton' })),
+      h('td', { class: 'px-4 py-4' }, h('div', { class: 'h-3 w-16 rounded skeleton' })),
+      h('td', { class: 'px-4 py-4' }, h('div', { class: 'h-3 w-16 rounded skeleton' })),
+      h('td', { class: 'px-4 py-4' }, h('div', { class: 'h-3 w-20 rounded skeleton' })),
+      h('td', { class: 'px-4 py-4 text-right' }, h('div', { class: 'inline-block h-3 w-8 rounded skeleton' })),
+    );
+    tbody.append(row);
+  }
+  table.append(tbody);
+  inner.append(table);
+  wrap.append(inner);
+  return wrap;
+}
+
+function renderEmptyState(): HTMLElement {
+  const active = hasActiveFilters();
+  const isTrash = state.viewMode === 'trash';
+  const title = isTrash ? '回收站是空的' : active ? '没有找到符合条件的书籍' : '书架还是空的';
+  const subtitle = isTrash
+    ? ''
+    : active
+      ? '尝试调整筛选条件，或清除当前筛选'
+      : '把你喜爱的书籍添加进来，开始搭建私人图书馆';
+  const actions = h('div', { class: 'flex flex-wrap items-center justify-center gap-3 mt-5' });
+
+  if (!isTrash) {
+    actions.append(
+      h('button', {
+        class: 'inline-flex items-center gap-2 px-4 py-2 border border-[var(--accent)] text-[var(--accent)] rounded-lg hover:bg-[var(--accent)]/10 transition-all font-medium text-sm',
+        onclick: () => openBookForm(),
+      }, iconPlus(18), active ? '添加书籍' : '添加第一本书'),
+    );
+    if (active) {
+      actions.append(
+        h('button', {
+          class: 'px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] rounded-lg transition-colors',
+          onclick: () => clearFilters(),
+        }, '清除筛选'),
+      );
+    }
+  }
+
+  return h('div', { class: 'flex flex-col items-center justify-center py-20 text-center' },
+    h('div', { class: 'mb-5 text-[var(--text-muted)]' }, iconBookOpen(64)),
+    h('h3', { class: 'text-base font-semibold font-display text-[var(--text-primary)] mb-1' }, title),
+    subtitle ? h('p', { class: 'text-sm text-[var(--text-secondary)] max-w-xs' }, subtitle) : null,
+    actions,
+  );
+}
+
 function renderListContent(list: HTMLElement) {
   list.replaceChildren();
   if (state.loading) {
-    list.append(h('div', { class: 'text-center text-shelf-400 py-10' }, '加载中…'));
+    list.append(state.view === 'table' ? renderSkeletonTable() : renderSkeletonGrid());
     return;
   }
   if (!state.books.length) {
-    list.append(
-      h('div', { class: 'col-span-full flex flex-col items-center justify-center py-20 text-shelf-400' },
-        h('svg', { class: 'w-16 h-16 mb-4 opacity-30', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' },
-          h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '1.5', d: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253' }),
-        ),
-        h('p', { class: 'text-sm' }, '没有找到符合条件的书籍'),
-      ),
-    );
+    list.append(renderEmptyState());
     return;
   }
   if (state.view === 'table') list.append(renderTable());
@@ -172,11 +236,11 @@ function renderListContent(list: HTMLElement) {
 }
 
 function renderTable(): HTMLElement {
-  const wrap = h('div', { class: 'bg-white dark:bg-shelf-800 rounded-xl border border-shelf-200 dark:border-shelf-700 overflow-hidden shadow-sm' });
+  const wrap = h('div', { class: 'bg-[var(--bg-surface)] rounded-xl border border-[var(--border-default)] overflow-hidden shadow-paper' });
   const inner = h('div', { class: 'overflow-x-auto' });
   const table = h('table', { class: 'w-full text-sm' });
   const thead = h('thead');
-  thead.append(h('tr', { class: 'border-b border-shelf-200 dark:border-shelf-700 text-left text-xs text-shelf-500 dark:text-shelf-400 uppercase tracking-wider' },
+  thead.append(h('tr', { class: 'border-b border-[var(--border-default)] text-left text-xs text-[var(--text-muted)] uppercase tracking-wider' },
     h('th', { class: 'px-4 py-3 font-medium' }, '封面'),
     h('th', { class: 'px-4 py-3 font-medium' }, '书名'),
     h('th', { class: 'px-4 py-3 font-medium' }, '作者'),
@@ -185,52 +249,48 @@ function renderTable(): HTMLElement {
     h('th', { class: 'px-4 py-3 font-medium' }, '评分'),
     h('th', { class: 'px-4 py-3 font-medium text-right' }, '操作'),
   ));
-  const tbody = h('tbody', { class: 'divide-y divide-shelf-100 dark:divide-shelf-700/50' });
-  for (const b of state.books) {
+  const tbody = h('tbody');
+  const books = state.books;
+  for (let i = 0; i < books.length; i++) {
+    const b = books[i];
     const meta = STATUS_META[b.status] ?? STATUS_META.unread;
+    const isLast = i === books.length - 1;
     const row = h('tr', { class: 'table-row cursor-pointer', onclick: () => renderDrawer(b) });
-    const coverCell = h('td', { class: 'px-4 py-3' },
-      h('div', { class: 'w-10 h-14 rounded-md overflow-hidden shadow-sm' },
-        b.cover_url
-          ? h('img', { src: b.cover_url, class: 'w-full h-full object-cover' })
-          : h('div', { class: `cover-pattern-${getCoverPattern(b.title)} w-full h-full flex items-center justify-center` },
-              h('span', { class: 'text-white/80 text-[8px] font-bold text-center px-1 leading-tight' }, b.title.slice(0, 2)),
-            ),
-      ),
+    const coverCell = h('td', { class: 'px-4 py-4' },
+      h('div', { class: 'w-10 h-14 rounded-md overflow-hidden shadow-sm' }, coverEl(b, 'table')),
     );
     row.append(
       coverCell,
-      h('td', { class: 'px-4 py-3' },
-        h('div', { class: 'font-medium text-sm text-shelf-900 dark:text-shelf-50' }, b.title),
-        b.original_title ? h('div', { class: 'text-xs text-shelf-400 mt-0.5' }, b.original_title) : null,
+      h('td', { class: 'px-4 py-4' },
+        h('div', { class: 'font-medium text-sm font-display text-[var(--text-primary)]' }, b.title),
+        b.original_title ? h('div', { class: 'text-xs text-[var(--text-muted)] mt-0.5' }, b.original_title) : null,
       ),
-      h('td', { class: 'px-4 py-3 text-sm text-shelf-600 dark:text-shelf-300' }, b.author ?? ''),
-      h('td', { class: 'px-4 py-3' },
+      h('td', { class: 'px-4 py-4 text-sm text-[var(--text-secondary)]' }, b.author ?? ''),
+      h('td', { class: 'px-4 py-4' },
         h('span', { class: `inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${meta.bg} ${meta.text}` },
           h('span', { class: `w-1.5 h-1.5 rounded-full ${meta.dot}` }),
           STATUS_LABEL[b.status] ?? b.status,
         ),
       ),
-      h('td', { class: 'px-4 py-3' },
+      h('td', { class: 'px-4 py-4' },
         b.category_name
-          ? h('span', { class: 'inline-flex items-center gap-1.5 text-xs' },
+          ? h('span', { class: 'inline-flex items-center gap-1.5 text-xs text-[var(--text-secondary)]' },
               h('span', { class: 'w-2 h-2 rounded-sm', style: `background:${b.category_color ?? '#8a8274'}` }),
               b.category_name,
             )
           : '',
       ),
-      h('td', { class: 'px-4 py-3' }, renderStars(b.rating)),
-      h('td', { class: 'px-4 py-3 text-right' },
+      h('td', { class: 'px-4 py-4' }, renderStars(b.rating)),
+      h('td', { class: 'px-4 py-4 text-right' },
         h('button', {
-          class: 'p-1.5 rounded-lg hover:bg-shelf-100 dark:hover:bg-shelf-700 transition-colors text-shelf-400 hover:text-shelf-600',
+          class: 'p-1.5 rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors text-[var(--text-muted)] hover:text-[var(--text-secondary)]',
           onclick: (e: Event) => { e.stopPropagation(); openBookForm(b); },
-        },
-          h('svg', { class: 'w-4 h-4', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' },
-            h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z' }),
-          ),
-        ),
+        }, iconEdit(18)),
       ),
     );
+    if (!isLast) {
+      row.classList.add('border-b', 'border-[var(--border-subtle)]');
+    }
     tbody.append(row);
   }
   table.append(thead, tbody);
@@ -243,20 +303,20 @@ function renderGrid(): HTMLElement {
   const grid = h('div', { class: 'view-grid grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 sm:gap-5 lg:gap-6' });
   for (const b of state.books) {
     const card = h('div', {
-      class: 'book-card group cursor-pointer bg-white dark:bg-shelf-800 rounded-2xl shadow-sm hover:shadow-xl overflow-hidden',
+      class: "book-card group cursor-pointer relative bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-xl shadow-paper hover:shadow-float hover:-translate-y-0.5 transition-all duration-300 after:content-[''] after:absolute after:left-[12.5%] after:right-[12.5%] after:-bottom-2 after:h-px after:bg-gradient-to-r after:from-transparent after:via-[var(--border-default)] after:to-transparent",
       onclick: () => renderDrawer(b),
     });
     card.append(
-      h('div', { class: 'relative aspect-[3/4] overflow-hidden shadow-md group-hover:shadow-xl transition-shadow mb-3' },
+      h('div', { class: 'relative aspect-[3/4] overflow-hidden shadow-md group-hover:shadow-xl transition-shadow' },
         coverEl(b),
         b.status === 'reading'
-          ? h('div', { class: 'absolute top-2 right-2 w-3 h-3 rounded-full bg-emerald-400 shadow-lg shadow-emerald-400/50 status-reading-dot border-2 border-white dark:border-shelf-800' })
+          ? h('div', { class: 'absolute top-2 right-2 w-3 h-3 rounded-full bg-[var(--accent)] shadow-lg shadow-[var(--accent)]/50 status-reading-dot border-2 border-[var(--bg-surface)]' })
           : null,
         h('div', { class: 'absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors' }),
       ),
-      h('div', { class: 'px-1 pb-1 space-y-1.5' },
-        h('h3', { class: 'font-semibold text-sm leading-tight line-clamp-1 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors' }, b.title),
-        h('p', { class: 'text-xs text-shelf-500 dark:text-shelf-400 line-clamp-1' }, b.author ?? ''),
+      h('div', { class: 'px-2 pb-2 pt-3 space-y-1.5' },
+        h('h3', { class: 'font-display font-semibold text-sm leading-tight line-clamp-1 text-[var(--text-primary)] group-hover:text-[var(--accent)] transition-colors' }, b.title),
+        h('p', { class: 'text-xs text-[var(--text-secondary)] line-clamp-1' }, b.author ?? ''),
         h('div', { class: 'flex items-center gap-2 pt-0.5' },
           statusBadge(b),
           b.rating ? renderStars(b.rating) : null,
