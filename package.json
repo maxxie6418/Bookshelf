@@ -10,7 +10,7 @@
     "migrate": "wrangler d1 execute bookshelf --local --file=./migrations/0000_init.sql",
     "seed": "node scripts/seed-local.mjs",
     "db:migrations:apply": "wrangler d1 migrations apply DB --remote",
-    "deploy": "npm run db:migrations:apply && wrangler deploy",
+    "deploy": "node scripts/deploy.mjs",
     "setup": "node scripts/setup.mjs"
   },
   "dependencies": {

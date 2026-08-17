@@ -6,6 +6,8 @@ dist/
 .DS_Store
 .workbuddy/
 .tmp/
+.wrangler-ids.env
+wrangler.prod.toml
 # 本地自测产物
 admin-pwd.txt
 seed.out
