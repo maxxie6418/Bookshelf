@@ -4,6 +4,10 @@ export default {
   content: ['./src/web/**/*.{html,ts}'],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+        serif: ['Noto Serif SC', 'Georgia', 'serif'],
+      },
       colors: {
         shelf: {
           50: '#faf9f7',

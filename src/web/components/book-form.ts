@@ -6,8 +6,8 @@ import { h, toast, modal } from '../ui';
 import { refresh, refreshSidebar } from '../refresh';
 
 const inputCls =
-  'w-full px-3.5 py-2 rounded-xl border border-shelf-200 dark:border-shelf-700 dark:bg-shelf-900 dark:text-shelf-50 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500';
-const labelCls = 'block text-xs text-shelf-500 dark:text-shelf-400 mb-1';
+  'w-full px-3.5 py-2 rounded-xl border border-shelf-200 dark:border-shelf-700 dark:bg-shelf-900 dark:text-shelf-50 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50 bg-shelf-50 dark:bg-shelf-700';
+const labelCls = 'block text-xs text-shelf-500 dark:text-shelf-400 mb-1.5';
 
 export function openBookForm(book?: Book) {
   const isEdit = !!book;
@@ -29,7 +29,7 @@ export function openBookForm(book?: Book) {
   const description = h('textarea', { class: inputCls + ' min-h-20', placeholder: '简介' }, book?.description ?? '');
   const coverUrl = h('input', { class: inputCls, value: book?.cover_url ?? '', placeholder: '封面 URL（留空用渐变兜底）' });
   const doubanUrl = h('input', { class: inputCls, value: book?.douban_url ?? '', placeholder: '豆瓣链接（M3 接入抓取）' });
-  const rating = h('input', { type: 'number', step: '0.1', min: '0', max: '10', class: inputCls, value: book?.rating ?? '', placeholder: '评分' });
+  const rating = h('input', { type: 'number', step: '0.1', min: '0', max: '10', class: inputCls, value: book?.rating ?? '', placeholder: '评分（0-10）' });
   const tags = h('input', { class: inputCls, value: book?.tags?.join(', ') ?? '', placeholder: '标签（逗号分隔）' });
 
   const statusSel = h('select', { class: inputCls });
@@ -46,7 +46,7 @@ export function openBookForm(book?: Book) {
   const fetchBar = h('div', { class: 'flex gap-2' },
     doubanUrl,
     h('button', {
-      class: 'shrink-0 px-3 py-2 rounded-xl border border-shelf-200 dark:border-shelf-700 text-sm text-shelf-600 dark:text-shelf-300',
+      class: 'shrink-0 px-3 py-2 rounded-xl border border-shelf-200 dark:border-shelf-700 text-sm text-shelf-600 dark:text-shelf-300 hover:bg-shelf-100 dark:hover:bg-shelf-700 transition-colors',
       onclick: () => void doFetch(doubanUrl.value),
     }, '抓取'),
   );
@@ -55,7 +55,17 @@ export function openBookForm(book?: Book) {
   const field = (label: string, el: HTMLElement) => h('div', {}, h('label', { class: labelCls }, label), el);
 
   const content = h('div', { class: 'space-y-3' },
-    fetchBar,
+    // 豆瓣抓取
+    h('div', {},
+      h('label', { class: labelCls }, '豆瓣链接'),
+      fetchBar,
+      h('p', { class: 'text-xs text-shelf-400 mt-1' }, '粘贴豆瓣书籍链接，自动获取元数据'),
+    ),
+    // 分隔线
+    h('div', { class: 'relative' },
+      h('div', { class: 'absolute inset-0 flex items-center' }, h('div', { class: 'w-full border-t border-shelf-200 dark:border-shelf-700' })),
+      h('div', { class: 'relative flex justify-center text-xs' }, h('span', { class: 'px-2 bg-white dark:bg-shelf-800 text-shelf-400' }, '或手动录入')),
+    ),
     field('书名 *', title),
     grid2(field('作者', author), field('译者', translator)),
     grid2(field('出版社', publisher), field('出版年', publishYear)),
@@ -66,9 +76,9 @@ export function openBookForm(book?: Book) {
     field('封面 URL', coverUrl),
     field('简介', description),
     h('div', { class: 'flex justify-end gap-3 pt-2' },
-      h('button', { class: 'px-4 py-2 rounded-xl text-shelf-600 dark:text-shelf-300 hover:bg-shelf-100 dark:hover:bg-shelf-700 text-sm', onclick: () => document.body.lastElementChild?.remove() }, '取消'),
+      h('button', { class: 'px-4 py-2 rounded-xl text-shelf-600 dark:text-shelf-300 hover:bg-shelf-100 dark:hover:bg-shelf-700 text-sm transition-colors', onclick: () => document.body.lastElementChild?.remove() }, '取消'),
       h('button', {
-        class: 'px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium',
+        class: 'px-5 py-2 rounded-xl bg-shelf-800 dark:bg-amber-500 text-white dark:text-shelf-900 text-sm font-medium hover:bg-shelf-700 dark:hover:bg-amber-400 transition-colors shadow-lg shadow-shelf-800/20',
         onclick: async () => {
           const payload: Record<string, unknown> = {
             title: title.value.trim(),

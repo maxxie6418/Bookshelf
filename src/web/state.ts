@@ -10,6 +10,7 @@ export const state = {
   viewMode: 'main' as 'main' | 'trash',
   filters: {} as Filters,
   books: [] as Book[],
+  allBooks: [] as Book[], // 无筛选的全部书籍（用于侧边栏统计）
   total: 0,
   loading: false,
   categories: [] as Category[],
