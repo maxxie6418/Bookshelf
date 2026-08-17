@@ -2,6 +2,12 @@
 
 路线 A：Cloudflare 全家桶（单 Worker + D1 + R2 + KV）。详见 `DOCS/`。
 
+## 一键部署
+
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/<你的用户名>/<你的仓库名>)
+
+> 把上面的仓库 URL 替换成你推送到 GitHub 后的地址。点击按钮会：克隆仓库到你的账号 → 自动创建并绑定 D1 / R2 / KV → 读取 `.dev.vars.example` 让你在向导里填写 secret（`SESSION_SECRET` / `INITIAL_ADMIN_PASSWORD` / AI 密钥）→ 自动跑 D1 迁移 + 构建 + 部署。首次请求会自动 seed 初始管理员（口令即你填写的 `INITIAL_ADMIN_PASSWORD`，首登强制修改）。
+
 ## 技术栈
 
 - 前端：Tailwind CSS + Vite 构建到 `dist/`，由 Worker 的 Workers Assets 托管
@@ -25,21 +31,30 @@ npm run migrate          # 本地 D1
 npx wrangler d1 execute bookshelf --remote --file=./migrations/0000_init.sql   # 远程
 ```
 
-## 一键部署
+## 手动部署（命令行）
+
+**方式 A — 全自动建资源（`npm run setup`）**
 
 ```bash
-npm run deploy           # node scripts/setup.mjs：建资源 → 迁移 → seed 初始管理员 → 提示设置 secrets → 部署
+npm run setup            # node scripts/setup.mjs：wrangler login → 建 D1/R2/KV → 迁移 → seed 初始管理员 → 提示设置 secrets → 部署
+```
+
+**方式 B — 资源已就绪时直接部署（`npm run deploy`）**
+
+```bash
+npm run deploy           # wrangler d1 migrations apply DB --remote && wrangler deploy
 ```
 
 部署前请设置 secrets（密钥不入库）：
 
 ```bash
 npx wrangler secret put SESSION_SECRET
+npx wrangler secret put INITIAL_ADMIN_PASSWORD   # 首次请求会自动 seed 初始管理员
 npx wrangler secret put AI_BASE_URL   # M4 用，可选
-npx wrangler secret put AI_API_KEY    # M4 用
+npx wrangler secret put AI_API_KEY    # M4 用，可选
 ```
 
-初始管理员口令由 `scripts/setup.mjs` 生成（或读 `INITIAL_ADMIN_PASSWORD` 环境变量），首登后强制修改。
+本地开发 seed：`npm run seed`（本地 D1 建表 + seed 初始管理员）。
 
 ## 当前里程碑进度
 

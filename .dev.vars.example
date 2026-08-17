@@ -1,0 +1,13 @@
+# 本地开发：复制本文件为 .dev.vars 并填写。
+# 「Deploy to Cloudflare」按钮也会读取本文件，让部署者在向导里填写这些 secret。
+# secret 不会入库（已被 .gitignore 忽略 .dev.vars）。
+
+# 签名会话 Cookie 的 HMAC 密钥，必填。请填至少 32 字符的随机字符串。
+SESSION_SECRET=
+
+# 初始管理员口令，可选但建议填：一键部署后首次请求会自动 seed 初始管理员（首登强制改口令）。
+INITIAL_ADMIN_PASSWORD=
+
+# M4 AI 查询用（OpenAI 兼容接口），可选。
+AI_BASE_URL=
+AI_API_KEY=
