@@ -5,3 +5,9 @@ dist/
 *.log
 .DS_Store
 .workbuddy/
+# 本地自测产物
+admin-pwd.txt
+seed.out
+dev.out
+dev2.out
+.tmp-seed.sql
