@@ -36,6 +36,7 @@ export interface EditForm {
     originalTitle: HTMLInputElement;
     isbn: HTMLInputElement;
     description: HTMLTextAreaElement;
+    notes: HTMLTextAreaElement;
     coverUrl: HTMLInputElement;
     doubanUrl: HTMLInputElement;
     rating: HTMLInputElement;
@@ -65,6 +66,7 @@ export function createBookEditForm(book?: Book, opts: { fetchLabel?: string } = 
     originalTitle: h('input', { class: inputCls, value: book?.original_title ?? '', placeholder: '原作名' }),
     isbn: h('input', { class: inputCls, value: book?.isbn ?? '', placeholder: 'ISBN' }),
     description: h('textarea', { class: inputCls + ' min-h-20', placeholder: '简介' }, book?.description ?? ''),
+    notes: h('textarea', { class: inputCls + ' min-h-20', maxlength: '2000', placeholder: '记录（最多 2000 字）' }, book?.notes ?? ''),
     coverUrl: h('input', { class: inputCls, value: book?.cover_url ?? '', placeholder: '封面 URL（留空用渐变兜底）' }),
     doubanUrl: h('input', { class: inputCls, value: book?.douban_url ?? '', placeholder: '豆瓣链接' }),
     rating: h('input', { type: 'number', step: '0.1', min: '0', max: '10', class: inputCls, value: book?.rating ?? '', placeholder: '评分（0-10）' }),
@@ -139,6 +141,7 @@ export function createBookEditForm(book?: Book, opts: { fetchLabel?: string } = 
       original_title: els.originalTitle.value.trim() || null,
       isbn: els.isbn.value.trim() || null,
       description: els.description.value.trim() || null,
+      notes: els.notes.value.trim() || null,
       cover_url: els.coverUrl.value.trim() || null,
       douban_url: els.doubanUrl.value.trim() || null,
       rating: els.rating.value ? Number(els.rating.value) : null,

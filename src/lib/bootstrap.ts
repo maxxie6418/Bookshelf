@@ -6,6 +6,7 @@ import { SCHEMA_STATEMENTS } from './schema';
 // 口令优先级：INITIAL_ADMIN_PASSWORD secret > 默认 admin123（仅限个人自用场景，请部署后立即登录并改密）。
 let seeded = false;
 let schemaReady = false;
+let notesColumnReady = false;
 
 // 幂等建表：仅当 users 表缺失时执行内置 schema（与 migrations/0000_init.sql 一致），
 // 使「Deploy to Cloudflare」等不执行迁移命令的部署方式也能自动完成建表。
@@ -22,8 +23,25 @@ async function ensureSchema(env: Env): Promise<void> {
   schemaReady = true;
 }
 
+// 幂等增量迁移：为已有 books 表补 notes（记录）列（可重复执行，缺列才 ALTER）。
+// 适配已存在数据的本地/线上库；全新库直接走 schema.ts/migrations 内置 notes 列。
+async function ensureBookNotesColumn(env: Env): Promise<void> {
+  if (notesColumnReady) return;
+  try {
+    const cols = await env.DB.prepare('PRAGMA table_info(books)').all<{ name: string }>();
+    const hasNotes = cols.results?.some((c) => c.name === 'notes');
+    if (!hasNotes) {
+      await env.DB.prepare('ALTER TABLE books ADD COLUMN notes TEXT').run();
+    }
+  } catch {
+    // books 表不存在或其它错误时静默跳过，避免阻塞引导
+  }
+  notesColumnReady = true;
+}
+
 export async function ensureAdmin(env: Env): Promise<void> {
   await ensureSchema(env);
+  await ensureBookNotesColumn(env);
   if (seeded) return;
   const row = await env.DB.prepare('SELECT COUNT(*) AS c FROM users').first<{ c: number }>();
   if ((row?.c ?? 0) > 0) {

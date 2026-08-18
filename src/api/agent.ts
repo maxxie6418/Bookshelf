@@ -24,6 +24,7 @@ const bookSchema = z.object({
   original_title: z.string().nullable().optional(),
   isbn: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
+  notes: z.string().max(2000, '记录最多 2000 字').nullable().optional(),
   cover_url: z.string().nullable().optional(),
   douban_url: z.string().nullable().optional(),
   rating: z.number().nullable().optional(),

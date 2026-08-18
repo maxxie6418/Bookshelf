@@ -1,11 +1,11 @@
 // 应用外壳：顶栏（搜索/主题/设置/退出）+ 侧栏（筛选）+ 主区（列表/回收站）
 import { api } from '../api';
 import { setState, state, subscribe } from '../state';
-import { h, iconSun, iconMoon, iconSettings, iconLogout, iconTrash, iconSearch } from '../ui';
+import { h, iconSun, iconMoon, iconSettings, iconLogout, iconTrash, iconSearch, iconKey } from '../ui';
 import { refresh, refreshSidebar } from '../refresh';
 import { renderBookList } from './book-list';
 import { renderTrash } from './trash-panel';
-import { openSettings, toggleTheme } from './settings-panel';
+import { openSettings, openAgentSettings, toggleTheme } from './settings-panel';
 
 const STATUS = [['unread', '未读'], ['reading', '在读'], ['finished', '读完']] as const;
 
@@ -141,41 +141,43 @@ function renderSidebar(): HTMLElement {
 
   const total = state.allBooks?.length ?? state.total ?? 0;
 
-  return h('div', { class: 'space-y-6 flex-1 flex flex-col' },
-    // 统计卡片
-    h('div', { class: 'grid grid-cols-2 gap-3' },
-      h('div', { class: 'bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-xl p-3 text-center' },
-        h('div', { class: 'text-2xl font-bold text-[var(--text-primary)] font-mono' }, String(total)),
-        h('div', { class: 'text-xs text-[var(--text-muted)] mt-0.5' }, '总藏书'),
+  return h('div', { class: 'flex-1 flex flex-col' },
+    h('div', { class: 'flex-1 space-y-6' },
+      // 统计卡片
+      h('div', { class: 'grid grid-cols-2 gap-3' },
+        h('div', { class: 'bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-xl p-3 text-center' },
+          h('div', { class: 'text-2xl font-bold text-[var(--text-primary)] font-mono' }, String(total)),
+          h('div', { class: 'text-xs text-[var(--text-muted)] mt-0.5' }, '总藏书'),
+        ),
+        h('div', { class: 'bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-xl p-3 text-center' },
+          h('div', { class: 'text-2xl font-bold text-[var(--accent)] font-mono' }, String(statusCounts.reading)),
+          h('div', { class: 'text-xs text-[var(--text-muted)] mt-0.5' }, '在读'),
+        ),
       ),
-      h('div', { class: 'bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-xl p-3 text-center' },
-        h('div', { class: 'text-2xl font-bold text-[var(--accent)] font-mono' }, String(statusCounts.reading)),
-        h('div', { class: 'text-xs text-[var(--text-muted)] mt-0.5' }, '在读'),
-      ),
+      // 状态筛选
+      section('阅读状态', [
+        item('全部书籍', !f.status && !f.categoryId && !f.tag, total, () => clickFilter({ status: undefined, categoryId: undefined, tag: undefined }), 'bg-[var(--text-muted)]'),
+        ...STATUS.map(([v, label]) => {
+          const meta = STATUS_META[v];
+          return item(label, f.status === v, statusCounts[v as keyof typeof statusCounts], () => clickFilter({ status: f.status === v ? undefined : v }), meta.dot);
+        }),
+      ]),
+      // 分类筛选
+      section('分类', state.categories.map((c) =>
+        item(c.name, f.categoryId === c.id, c.count, () => clickFilter({ categoryId: f.categoryId === c.id ? undefined : c.id })),
+      )),
+      // 标签筛选
+      section('标签', state.tags.map((t) =>
+        item(`#${t.name}`, f.tag === t.name, t.count, () => clickFilter({ tag: f.tag === t.name ? undefined : t.name })),
+      )),
+      // 管理
+      section('管理', [
+        item(h('span', { class: 'flex items-center gap-2.5' }, iconTrash(16), '回收站'), state.viewMode === 'trash', undefined, () => {
+          setState({ viewMode: state.viewMode === 'trash' ? 'main' : 'trash' });
+          void refresh();
+        }),
+      ]),
     ),
-    // 状态筛选
-    section('阅读状态', [
-      item('全部书籍', !f.status && !f.categoryId && !f.tag, total, () => clickFilter({ status: undefined, categoryId: undefined, tag: undefined }), 'bg-[var(--text-muted)]'),
-      ...STATUS.map(([v, label]) => {
-        const meta = STATUS_META[v];
-        return item(label, f.status === v, statusCounts[v as keyof typeof statusCounts], () => clickFilter({ status: f.status === v ? undefined : v }), meta.dot);
-      }),
-    ]),
-    // 分类筛选
-    section('分类', state.categories.map((c) =>
-      item(c.name, f.categoryId === c.id, c.count, () => clickFilter({ categoryId: f.categoryId === c.id ? undefined : c.id })),
-    )),
-    // 标签筛选
-    section('标签', state.tags.map((t) =>
-      item(`#${t.name}`, f.tag === t.name, t.count, () => clickFilter({ tag: f.tag === t.name ? undefined : t.name })),
-    )),
-    // 管理
-    section('管理', [
-      item(h('span', { class: 'flex items-center gap-2.5' }, iconTrash(16), '回收站'), state.viewMode === 'trash', undefined, () => {
-        setState({ viewMode: state.viewMode === 'trash' ? 'main' : 'trash' });
-        void refresh();
-      }),
-    ]),
     // 底部操作区（贴底）
     h('div', { class: 'mt-auto pt-4 border-t border-[var(--border-subtle)] flex items-center justify-around' },
       h('button', {
@@ -183,6 +185,11 @@ function renderSidebar(): HTMLElement {
         title: '切换主题',
         onclick: toggleTheme,
       }, state.theme === 'dark' ? iconSun(18) : iconMoon(18)),
+      h('button', {
+        class: 'p-2 rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors text-[var(--text-secondary)]',
+        title: 'Agent 设置',
+        onclick: openAgentSettings,
+      }, iconKey(18)),
       h('button', {
         class: 'p-2 rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors text-[var(--text-secondary)]',
         title: '设置',

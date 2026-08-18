@@ -109,6 +109,16 @@ async function renderAgentKeysSection(container: HTMLElement) {
   await refresh();
 }
 
+export function openAgentSettings() {
+  const wrap = h('div', {});
+  const content = h('div', { class: 'space-y-4' },
+    h('h3', { class: 'text-sm font-medium text-[var(--text-primary)]' }, 'AI Agent Keys'),
+    wrap,
+  );
+  modal('AI Agent 接入', content);
+  void renderAgentKeysSection(wrap);
+}
+
 export function openSettings() {
   const oldPwd = h('input', { type: 'password', placeholder: '当前口令（可选校验）', class: inputCls });
   const newPwd = h('input', { type: 'password', placeholder: '新口令（至少 6 位）', class: inputCls + ' mt-3' });

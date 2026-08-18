@@ -19,6 +19,7 @@ export interface Book {
   original_title: string | null;
   isbn: string | null;
   description: string | null;
+  notes?: string | null;
   cover_url: string | null;
   douban_url: string | null;
   rating: number | null;
