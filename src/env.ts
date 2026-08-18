@@ -2,7 +2,7 @@
 
 // Worker 绑定与 secret 的集中类型定义。
 export interface Env {
-  // 绑定（wrangler.toml）
+  // 绑定（wrangler.jsonc）
   DB: D1Database;
   COVERS: R2Bucket;
   KV: KVNamespace;

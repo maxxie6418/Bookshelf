@@ -19,30 +19,32 @@
 
 ## 开发前准备
 
-1. 安装依赖：`npm install`
+1. 安装依赖：`npm install`（需要 Node 18+，建议 20+）
 2. 安装并登录 Cloudflare：`npx wrangler login`（或设置 `CF_API_TOKEN`）
 3. 类型检查：`npm run typecheck`
 4. 本地预览（全栈）：`npm run dev`
+
+> Wrangler 4.45+ 支持自动资源创建：`wrangler.jsonc` 中的 D1/R2/KV 绑定不写资源 ID，部署时会自动创建或按名字复用已存在的资源（D1 `bookshelf`、R2 `bookshelf-covers`）。无需手动维护资源 ID，仓库也永不包含账号私有 ID，其他人 fork 后同样可以一键部署到自己的账号。
 
 ## 数据库迁移
 
 ```bash
 npm run migrate          # 本地 D1
-npx wrangler d1 execute bookshelf --remote --file=./migrations/0000_init.sql   # 远程
+npx wrangler d1 migrations apply bookshelf --remote   # 远程（deploy/setup 脚本已自动执行）
 ```
 
 ## 手动部署（命令行）
 
-**方式 A — 全自动建资源（`npm run setup`）**
+**方式 A — 全自动部署（`npm run setup`）**
 
 ```bash
-npm run setup            # node scripts/setup.mjs：wrangler login → 建 D1/R2/KV → 迁移 → seed 初始管理员 → 提示设置 secrets → 部署
+npm run setup            # node scripts/setup.mjs：构建 → wrangler deploy（自动创建/复用 D1/R2/KV）→ 远程迁移 → 提示 secrets
 ```
 
-**方式 B — 资源已就绪时直接部署（`npm run deploy`）**
+**方式 B — 增量部署（`npm run deploy`）**
 
 ```bash
-npm run deploy           # wrangler d1 migrations apply DB --remote && wrangler deploy
+npm run deploy           # node scripts/deploy.mjs：构建 → wrangler deploy → 远程迁移
 ```
 
 部署前请设置 secrets（密钥不入库）：
