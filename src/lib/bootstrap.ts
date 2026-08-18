@@ -1,11 +1,29 @@
 import type { Env } from '../env';
 import { hashPassword } from './auth';
+import { SCHEMA_STATEMENTS } from './schema';
 
-// 首次运行引导：若 users 为空，自动 seed 初始管理员（首登强制改口令）。
+// 首次运行引导：先确保表结构存在（幂等自迁移），再在 users 为空时 seed 初始管理员（首登强制改口令）。
 // 口令优先级：INITIAL_ADMIN_PASSWORD secret > 默认 admin123（仅限个人自用场景，请部署后立即登录并改密）。
 let seeded = false;
+let schemaReady = false;
+
+// 幂等建表：仅当 users 表缺失时执行内置 schema（与 migrations/0000_init.sql 一致），
+// 使「Deploy to Cloudflare」等不执行迁移命令的部署方式也能自动完成建表。
+async function ensureSchema(env: Env): Promise<void> {
+  if (schemaReady) return;
+  const row = await env.DB.prepare(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name='users'",
+  ).first();
+  if (row) {
+    schemaReady = true;
+    return;
+  }
+  await env.DB.batch(SCHEMA_STATEMENTS.map((sql) => env.DB.prepare(sql)));
+  schemaReady = true;
+}
 
 export async function ensureAdmin(env: Env): Promise<void> {
+  await ensureSchema(env);
   if (seeded) return;
   const row = await env.DB.prepare('SELECT COUNT(*) AS c FROM users').first<{ c: number }>();
   if ((row?.c ?? 0) > 0) {
