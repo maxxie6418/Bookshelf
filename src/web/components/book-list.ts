@@ -141,7 +141,7 @@ function clearFilters() {
 }
 
 function renderSkeletonGrid(): HTMLElement {
-  const grid = h('div', { class: 'view-grid grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 sm:gap-5 lg:gap-6' });
+  const grid = h('div', { class: 'view-grid grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-3 sm:gap-4 lg:gap-5' });
   for (let i = 0; i < 12; i++) {
     grid.append(
       h('div', { class: 'flex flex-col gap-3' },
@@ -300,7 +300,7 @@ function renderTable(): HTMLElement {
 }
 
 function renderGrid(): HTMLElement {
-  const grid = h('div', { class: 'view-grid grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 sm:gap-5 lg:gap-6' });
+  const grid = h('div', { class: 'view-grid grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-3 sm:gap-4 lg:gap-5' });
   for (const b of state.books) {
     const card = h('div', {
       class: "book-card group cursor-pointer relative bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-xl shadow-paper hover:shadow-float hover:-translate-y-0.5 transition-all duration-300 after:content-[''] after:absolute after:left-[12.5%] after:right-[12.5%] after:-bottom-2 after:h-px after:bg-gradient-to-r after:from-transparent after:via-[var(--border-default)] after:to-transparent",
@@ -314,9 +314,9 @@ function renderGrid(): HTMLElement {
           : null,
         h('div', { class: 'absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors' }),
       ),
-      h('div', { class: 'px-2 pb-2 pt-3 space-y-1.5' },
-        h('h3', { class: 'font-display font-semibold text-sm leading-tight line-clamp-1 text-[var(--text-primary)] group-hover:text-[var(--accent)] transition-colors' }, b.title),
-        h('p', { class: 'text-xs text-[var(--text-secondary)] line-clamp-1' }, b.author ?? ''),
+      h('div', { class: 'px-1.5 pb-1.5 pt-2 space-y-1' },
+        h('h3', { class: 'font-display font-semibold text-[13px] leading-tight line-clamp-1 text-[var(--text-primary)] group-hover:text-[var(--accent)] transition-colors' }, b.title),
+        h('p', { class: 'text-[11px] text-[var(--text-secondary)] line-clamp-1' }, b.author ?? ''),
         h('div', { class: 'flex items-center gap-2 pt-0.5' },
           statusBadge(b),
           b.rating ? renderStars(b.rating) : null,

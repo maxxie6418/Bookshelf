@@ -112,6 +112,10 @@ export function renderDrawer(book: Book) {
           ...current.tags.map((t) => h('span', { class: 'px-2.5 py-1 rounded-full text-xs bg-[var(--bg-surface-hover)] text-[var(--text-secondary)] border border-[var(--border-subtle)]' }, `#${t}`)),
         ),
       ) : null,
+      current.notes ? h('div', {},
+        h('div', { class: 'text-xs text-[var(--text-muted)] mb-2' }, '记录'),
+        h('p', { class: 'text-sm leading-relaxed text-[var(--text-secondary)] whitespace-pre-wrap' }, current.notes),
+      ) : null,
       h('div', { class: 'flex gap-3 pt-2 pb-4' },
         h('button', { class: 'flex-1 px-4 py-2.5 border border-[var(--border-default)] rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] transition-colors', onclick: close }, '关闭'),
         h('button', { class: 'flex-1 px-4 py-2.5 bg-[var(--accent)] text-[var(--accent-text)] rounded-lg text-sm font-medium hover:bg-[var(--accent-hover)] transition-colors', onclick: () => enterEdit(current) }, '编辑'),
@@ -166,6 +170,7 @@ export function renderDrawer(book: Book) {
       editField('标签', els.tags),
       editField('封面 URL', els.coverUrl),
       editField('简介', els.description),
+      editField('记录', els.notes),
       h('div', { class: 'flex gap-3 pt-3 pb-4' },
         h('button', { class: 'flex-1 px-4 py-2.5 border border-[var(--border-default)] rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] transition-colors', onclick: () => renderDisplay(current) }, '取消'),
         h('button', {
