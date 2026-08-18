@@ -1,0 +1,39 @@
+{
+  // Bookshelf 的 Cloudflare Worker 配置。
+  // 资源绑定（D1/R2/KV）故意不写资源 ID：Wrangler 4.45+ 会自动创建/复用并回写 ID（仅 JSON 配置支持回写），
+  // 因此仓库内永远不会混入账号私有 ID，任何人 fork 后点击「Deploy to Cloudflare」都能一键部署到自己的账号。
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "bookshelf",
+  "main": "src/index.ts",
+  "compatibility_date": "2024-11-01",
+  // Workers Assets：托管 dist/ 下的 SPA；/api/* 由 Worker 处理（见 dist/_routes.json）
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS"
+  },
+  "vars": {
+    "APP_NAME": "Bookshelf"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "bookshelf",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "COVERS",
+      "bucket_name": "bookshelf-covers"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "KV"
+    }
+  ]
+  // Secrets（不要写进仓库）：用 `wrangler secret put` 设置
+  //   SESSION_SECRET            签名会话 Cookie 的 HMAC 密钥（必填）
+  //   INITIAL_ADMIN_PASSWORD    初始管理员口令（可选，未设则首次请求时随机生成）
+  //   AI_BASE_URL / AI_API_KEY  M4 AI 查询用（可选）
+}
