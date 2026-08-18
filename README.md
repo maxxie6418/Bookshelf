@@ -6,7 +6,7 @@
 
 [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/maxxie6418/Bookshelf)
 
-> 点击按钮会：克隆仓库到你的账号 → 自动创建并绑定 D1 / R2 / KV → 读取 `.dev.vars.example` 让你在向导里填写 secret（`SESSION_SECRET` / `INITIAL_ADMIN_PASSWORD` / AI 密钥）→ 自动跑 D1 迁移 + 构建 + 部署。首次请求会自动 seed 初始管理员：用户名 `admin`，口令为你填写的 `INITIAL_ADMIN_PASSWORD`；未填写则默认为 `admin123`（首登强制改口令，请部署后立即登录修改）。
+> 点击按钮会：克隆仓库到你的账号 → 自动创建并绑定 D1 / R2 / KV（KV 同名自动复用，见下）→ 读取 `.dev.vars.example` 让你在向导里填写 secret（`SESSION_SECRET` / `INITIAL_ADMIN_PASSWORD` / AI 密钥）→ 自动跑 D1 迁移 + 构建 + 部署。首次请求会自动 seed 初始管理员：用户名 `admin`，口令为你填写的 `INITIAL_ADMIN_PASSWORD`；未填写则默认为 `admin123`（首登强制改口令，请部署后立即登录修改）。
 
 ## 技术栈
 
@@ -25,6 +25,8 @@
 4. 本地预览（全栈）：`npm run dev`
 
 > Wrangler 4.45+ 支持自动资源创建：`wrangler.jsonc` 中的 D1/R2/KV 绑定不写资源 ID，部署时会自动创建或按名字复用已存在的资源（D1 `bookshelf`、R2 `bookshelf-covers`）。无需手动维护资源 ID，仓库也永不包含账号私有 ID，其他人 fork 后同样可以一键部署到自己的账号。
+>
+> **KV 同名复用**（绕开 wrangler auto-provisioning 的已知 bug [workers-sdk#14284](https://github.com/cloudflare/workers-sdk/issues/14284)）：`npm run build` 会先运行 `scripts/prepare-kv.mjs`，查询账号中是否已有同名 KV（`bookshelf-kv`）——有则自动注入其 ID 复用（不再触发创建、不会报 10014），无则交由 wrangler 首次自动创建、后续部署再查即可复用。**本地仅构建不部署时若 `wrangler.jsonc` 被注入 ID，属正常行为，请勿提交该改动**（可用 `git checkout -- wrangler.jsonc` 还原）。
 
 ## 数据库迁移
 

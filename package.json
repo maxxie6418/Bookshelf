@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "build": "vite build",
+    "build": "node scripts/prepare-kv.mjs && vite build",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.web.json --noEmit",
     "migrate": "wrangler d1 execute bookshelf --local --file=./migrations/0000_init.sql",
     "seed": "node scripts/seed-local.mjs",
