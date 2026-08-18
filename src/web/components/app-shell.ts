@@ -38,7 +38,7 @@ export function mountAppShell(root: HTMLElement) {
   const navbar = h('header', {
     class: 'sticky top-0 z-40 bg-[var(--bg-surface)]/80 backdrop-blur-xl border-b border-[var(--border-default)] text-[var(--text-primary)] transition-colors duration-300',
   },
-    h('div', { class: 'max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8' },
+    h('div', { class: 'px-4 sm:px-6 lg:px-8' },
       h('div', { class: 'flex items-center justify-between h-16' },
         // Logo
         h('div', { class: 'flex items-center gap-2.5 shrink-0' },
@@ -94,7 +94,7 @@ export function mountAppShell(root: HTMLElement) {
 
   root.append(
     navbar,
-    h('div', { class: 'max-w-[1600px] mx-auto flex min-h-[calc(100vh-64px)]' }, sidebarRoot, viewRoot),
+    h('div', { class: 'flex min-h-[calc(100vh-64px)]' }, sidebarRoot, viewRoot),
     toastRoot,
   );
 
