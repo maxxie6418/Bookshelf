@@ -13,11 +13,12 @@ const STATUS_META: Record<string, { label: string; dot: string; bg: string; text
   finished: { label: '已读完', dot: 'bg-[var(--accent)]',                      bg: 'bg-[var(--bg-surface-hover)]', text: 'text-[var(--text-secondary)]' },
 };
 
-function field(label: string, value: string | null | undefined): HTMLElement | null {
-  if (!value) return null;
+function field(label: string, value: string | number | null | undefined): HTMLElement {
+  const text = value == null || value === '' ? '*' : String(value);
+  const isEmpty = text === '*';
   return h('div', { class: 'text-sm' },
     h('div', { class: 'text-xs text-[var(--text-muted)] mb-1' }, label),
-    h('div', { class: 'font-medium text-[var(--text-primary)]' }, value),
+    h('div', { class: isEmpty ? 'text-[var(--text-muted)]' : 'font-medium text-[var(--text-primary)]' }, text),
   );
 }
 
