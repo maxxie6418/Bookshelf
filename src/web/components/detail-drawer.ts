@@ -1,7 +1,7 @@
 // 详情抽屉
 import { api } from '../api';
 import type { Book } from '../types';
-import { h, toast, confirmDialog, renderCoverPlaceholder, renderStars, iconClose, iconBookOpen } from '../ui';
+import { h, toast, confirmDialog, renderCoverPlaceholder, renderStars, iconClose } from '../ui';
 import { openBookForm } from './book-form';
 import { refresh } from '../refresh';
 
@@ -19,6 +19,16 @@ function field(label: string, value: string | number | null | undefined): HTMLEl
   return h('div', { class: 'text-sm' },
     h('div', { class: 'text-xs text-[var(--text-muted)] mb-1' }, label),
     h('div', { class: isEmpty ? 'text-[var(--text-muted)]' : 'font-medium text-[var(--text-primary)]' }, text),
+  );
+}
+
+function fieldLink(label: string, url: string | null | undefined): HTMLElement {
+  const has = !!url && url.trim() !== '';
+  return h('div', { class: 'text-sm' },
+    h('div', { class: 'text-xs text-[var(--text-muted)] mb-1' }, label),
+    has
+      ? h('a', { href: url!, target: '_blank', rel: 'noreferrer', class: 'font-medium text-[var(--accent)] hover:underline break-all' }, url)
+      : h('div', { class: 'text-[var(--text-muted)]' }, '*'),
   );
 }
 
@@ -78,6 +88,7 @@ export function renderDrawer(book: Book) {
       field('出版年', book.publish_year != null ? String(book.publish_year) : null),
       field('ISBN', book.isbn),
       field('页数', book.page_count != null ? `${book.page_count} 页` : null),
+      fieldLink('豆瓣链接', book.douban_url),
     ),
     // 简介
     book.description ? h('div', {},
@@ -90,10 +101,6 @@ export function renderDrawer(book: Book) {
       h('div', { class: 'flex flex-wrap gap-2' },
         ...book.tags.map((t) => h('span', { class: 'px-2.5 py-1 rounded-full text-xs bg-[var(--bg-surface-hover)] text-[var(--text-secondary)] border border-[var(--border-subtle)]' }, `#${t}`)),
       ),
-    ) : null,
-    // 豆瓣链接
-    book.douban_url ? h('div', {},
-      h('a', { href: book.douban_url, target: '_blank', rel: 'noreferrer', class: 'inline-flex items-center gap-1.5 text-[var(--accent)] text-sm hover:underline' }, iconBookOpen(18), '豆瓣链接'),
     ) : null,
     // 操作按钮
     h('div', { class: 'flex gap-3 pt-2 pb-4' },
