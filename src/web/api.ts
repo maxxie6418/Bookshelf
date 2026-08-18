@@ -28,7 +28,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 function qs(params: object): string {
   const sp = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) {
-    if (v !== undefined && v !== null && v !== '') sp.set(k, String(v));
+    if (v === undefined || v === null || v === '') continue;
+    sp.set(k, typeof v === 'boolean' ? (v ? '1' : '0') : String(v));
   }
   const s = sp.toString();
   return s ? `?${s}` : '';

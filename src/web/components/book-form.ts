@@ -11,6 +11,7 @@ const labelCls = 'block text-xs text-[var(--text-secondary)] mb-1.5';
 
 export function openBookForm(book?: Book) {
   const isEdit = !!book;
+  let overlay: HTMLElement | null = null;
 
   // 抓取预填（M3 接入前先留桩：可直接填字段）
   const doFetch = async (urlOrIsbn: string) => {
@@ -76,7 +77,7 @@ export function openBookForm(book?: Book) {
     field('封面 URL', coverUrl),
     field('简介', description),
     h('div', { class: 'flex justify-end gap-3 pt-2' },
-      h('button', { class: 'px-4 py-2 rounded-xl text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] text-sm transition-colors', onclick: () => document.body.lastElementChild?.remove() }, '取消'),
+      h('button', { class: 'px-4 py-2 rounded-xl text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] text-sm transition-colors', onclick: () => overlay?.remove() }, '取消'),
       h('button', {
         class: 'px-5 py-2 rounded-xl bg-[var(--accent)] text-[var(--accent-text)] text-sm font-medium hover:bg-[var(--accent-hover)] transition-colors shadow-lg shadow-[var(--accent)]/20',
         onclick: async () => {
@@ -104,7 +105,7 @@ export function openBookForm(book?: Book) {
           try {
             if (isEdit) await api.updateBook(book!.id, payload);
             else await api.createBook(payload as never);
-            document.body.lastElementChild?.remove();
+            overlay?.remove();
             toast(isEdit ? '已更新' : '已添加');
             await refresh();
             await refreshSidebar();
@@ -116,5 +117,5 @@ export function openBookForm(book?: Book) {
     ),
   );
 
-  modal(isEdit ? `编辑《${book!.title}》` : '添加书籍', content);
+  overlay = modal(isEdit ? `编辑《${book!.title}》` : '添加书籍', content);
 }

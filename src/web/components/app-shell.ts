@@ -1,7 +1,7 @@
 // 应用外壳：顶栏（搜索/主题/设置/退出）+ 侧栏（筛选）+ 主区（列表/回收站）
 import { api } from '../api';
 import { setState, state, subscribe } from '../state';
-import { h, toast, iconSun, iconMoon, iconSettings, iconLogout, iconTrash, iconSearch, iconPlus } from '../ui';
+import { h, iconSun, iconMoon, iconSettings, iconLogout, iconTrash, iconSearch } from '../ui';
 import { refresh, refreshSidebar } from '../refresh';
 import { renderBookList } from './book-list';
 import { renderTrash } from './trash-panel';
@@ -56,31 +56,8 @@ export function mountAppShell(root: HTMLElement) {
             search,
           ),
         ),
-        // 右侧按钮
-        h('div', { class: 'flex items-center gap-2' },
-          h('button', {
-            class: 'p-2 rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors text-[var(--text-secondary)]',
-            title: '切换主题',
-            onclick: toggleTheme,
-          }, state.theme === 'dark' ? iconSun(20) : iconMoon(20)),
-          h('button', {
-            class: 'hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--accent)]/10 transition-colors font-medium text-sm',
-            onclick: () => { import('./book-form').then(m => m.openBookForm()); },
-          }, iconPlus(18), '添加书籍'),
-          h('button', {
-            class: 'p-2 rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors text-[var(--text-secondary)]',
-            title: '设置',
-            onclick: openSettings,
-          }, iconSettings(20)),
-          h('button', {
-            class: 'hidden sm:flex p-2 rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors text-[var(--text-secondary)]',
-            title: '退出',
-            onclick: async () => {
-              await api.logout().catch(() => undefined);
-              window.location.reload();
-            },
-          }, iconLogout(20)),
-        ),
+        // 右侧留空（操作按钮已移至侧栏底部）
+        h('div', { class: 'w-10 shrink-0' }),
       ),
       // 搜索（移动端）
       h('div', { class: 'md:hidden pb-3' },
@@ -103,7 +80,7 @@ export function mountAppShell(root: HTMLElement) {
   );
 
   // ---------- 侧栏 / 主区 ----------
-  const sidebarRoot = h('aside', { class: 'w-60 shrink-0 border-r border-[var(--border-default)] p-5 overflow-y-auto hidden md:block' });
+  const sidebarRoot = h('aside', { class: 'w-60 shrink-0 border-r border-[var(--border-default)] p-5 overflow-y-auto hidden md:flex md:flex-col' });
   const viewRoot = h('main', { class: 'flex-1 min-w-0' });
   const toastRoot = h('div', { id: 'toast-root', class: 'fixed bottom-4 right-4 z-[60] space-y-2 pointer-events-none' });
 
@@ -129,7 +106,7 @@ export function mountAppShell(root: HTMLElement) {
 function renderSidebar(): HTMLElement {
   const f = state.filters;
   const clickFilter = (patch: Partial<typeof state.filters>) => {
-    setState({ filters: { ...state.filters, ...patch } });
+    setState({ filters: { ...state.filters, ...patch }, viewMode: 'main' });
     void refresh();
   };
 
@@ -164,7 +141,7 @@ function renderSidebar(): HTMLElement {
 
   const total = state.allBooks?.length ?? state.total ?? 0;
 
-  return h('div', { class: 'space-y-6' },
+  return h('div', { class: 'space-y-6 flex-1 flex flex-col' },
     // 统计卡片
     h('div', { class: 'grid grid-cols-2 gap-3' },
       h('div', { class: 'bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-xl p-3 text-center' },
@@ -199,5 +176,26 @@ function renderSidebar(): HTMLElement {
         void refresh();
       }),
     ]),
+    // 底部操作区（贴底）
+    h('div', { class: 'mt-auto pt-4 border-t border-[var(--border-subtle)] flex items-center justify-around' },
+      h('button', {
+        class: 'p-2 rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors text-[var(--text-secondary)]',
+        title: '切换主题',
+        onclick: toggleTheme,
+      }, state.theme === 'dark' ? iconSun(18) : iconMoon(18)),
+      h('button', {
+        class: 'p-2 rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors text-[var(--text-secondary)]',
+        title: '设置',
+        onclick: openSettings,
+      }, iconSettings(18)),
+      h('button', {
+        class: 'p-2 rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors text-[var(--text-secondary)]',
+        title: '退出',
+        onclick: async () => {
+          await api.logout().catch(() => undefined);
+          window.location.reload();
+        },
+      }, iconLogout(18)),
+    ),
   );
 }
