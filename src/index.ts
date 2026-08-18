@@ -7,6 +7,8 @@ import { categoriesRoutes } from './api/categories';
 import { tagsRoutes } from './api/tags';
 import { metadataRoutes } from './api/metadata';
 import { coversRoutes } from './api/covers';
+import { agentRoutes } from './api/agent';
+import { agentKeysRoutes } from './api/agent-keys';
 import { ensureAdmin } from './lib/bootstrap';
 
 // M0–M1：health / auth / books / categories / tags；M3+ 追加 metadata / query / export / import。
@@ -31,6 +33,8 @@ app.route('/api/books/metadata', metadataRoutes);
 app.route('/api/covers', coversRoutes);
 app.route('/api/categories', categoriesRoutes);
 app.route('/api/tags', tagsRoutes);
+app.route('/api/agent', agentRoutes);
+app.route('/api/agent-keys', agentKeysRoutes);
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
