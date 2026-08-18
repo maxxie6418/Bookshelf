@@ -5,6 +5,8 @@ import { healthRoutes } from './api/health';
 import { booksRoutes } from './api/books';
 import { categoriesRoutes } from './api/categories';
 import { tagsRoutes } from './api/tags';
+import { metadataRoutes } from './api/metadata';
+import { coversRoutes } from './api/covers';
 import { ensureAdmin } from './lib/bootstrap';
 
 // M0–M1：health / auth / books / categories / tags；M3+ 追加 metadata / query / export / import。
@@ -25,6 +27,8 @@ app.use('/api/*', async (c, next) => {
 app.route('/api/health', healthRoutes);
 app.route('/api/auth', authRoutes);
 app.route('/api/books', booksRoutes);
+app.route('/api/books/metadata', metadataRoutes);
+app.route('/api/covers', coversRoutes);
 app.route('/api/categories', categoriesRoutes);
 app.route('/api/tags', tagsRoutes);
 
