@@ -6,6 +6,22 @@
   "name": "bookshelf",
   "main": "src/index.ts",
   "compatibility_date": "2024-11-01",
+  // 运行日志（诊断用）：让 console 输出持久化，可在 Cloudflare 控制台查看 500 的错误栈
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "persist": true,
+      "invocation_logs": true
+    },
+    "traces": {
+      "enabled": false,
+      "persist": true,
+      "head_sampling_rate": 1
+    }
+  },
   // Workers Assets：托管 dist/ 下的 SPA；/api/* 由 Worker 处理（见 dist/_routes.json）
   "assets": {
     "directory": "./dist",
@@ -34,6 +50,6 @@
   ]
   // Secrets（不要写进仓库）：用 `wrangler secret put` 设置
   //   SESSION_SECRET            签名会话 Cookie 的 HMAC 密钥（必填）
-  //   INITIAL_ADMIN_PASSWORD    初始管理员口令（可选，未设则首次请求时随机生成）
+  //   INITIAL_ADMIN_PASSWORD    初始管理员口令（可选，未设则默认 admin123，首登强制改密）
   //   AI_BASE_URL / AI_API_KEY  M4 AI 查询用（可选）
 }
