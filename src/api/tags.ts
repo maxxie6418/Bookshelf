@@ -8,6 +8,7 @@ export const tagsRoutes = new Hono<{ Bindings: Env }>();
 tagsRoutes.use(requireAuth);
 
 const tagSchema = z.object({ name: z.string().min(1, '标签名必填') });
+const tagUpdateSchema = z.object({ name: z.string().min(1, '标签名必填').optional() });
 
 function err(c: { json: (v: unknown, s?: number) => Response }, code: string, message: string, status = 400): Response {
   return c.json({ error: { code, message } }, status);
@@ -38,4 +39,24 @@ tagsRoutes.delete('/:id', async (c) => {
   const ok = await tags.deleteTag(c.env.DB, id);
   if (!ok) return err(c, 'NOT_FOUND', '不存在', 404);
   return c.body(null, 204);
+});
+
+tagsRoutes.patch('/:id', async (c) => {
+  const id = Number(c.req.param('id'));
+  const body = await c.req.json().catch(() => null);
+  const parsed = tagUpdateSchema.safeParse(body);
+  if (!parsed.success) return err(c, 'VALIDATION_ERROR', parsed.error.issues[0]?.message ?? '参数错误');
+  if (!parsed.data.name) return err(c, 'VALIDATION_ERROR', '标签名必填');
+  try {
+    const ok = await tags.renameTag(c.env.DB, id, parsed.data.name.trim());
+    if (!ok) return err(c, 'NOT_FOUND', '不存在', 404);
+    const updated = await tags.getTagById(c.env.DB, id);
+    if (!updated) return err(c, 'NOT_FOUND', '不存在', 404);
+    return c.json({ data: updated });
+  } catch (e) {
+    if (String((e as Error).message ?? e).includes('UNIQUE')) {
+      return err(c, 'VALIDATION_ERROR', '标签名已存在');
+    }
+    throw e;
+  }
 });

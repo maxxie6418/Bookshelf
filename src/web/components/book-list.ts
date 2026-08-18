@@ -5,6 +5,7 @@ import type { Book } from '../types';
 import { h, toast, renderCoverPlaceholder, renderStars, iconList, iconGrid, iconEdit, iconPlus, iconBookOpen } from '../ui';
 import { renderDrawer } from './detail-drawer';
 import { openBookForm } from './book-form';
+import { renderImportExportButtons } from './import-export';
 import { refresh } from '../refresh';
 
 const STATUS_LABEL: Record<string, string> = { unread: '未读', reading: '在读', finished: '读完' };
@@ -96,6 +97,7 @@ export function renderBookList(container: HTMLElement) {
           h('span', { class: 'text-xs text-[var(--text-muted)] hidden sm:inline' }, '排序：'),
           sortSel,
           viewToggle,
+          renderImportExportButtons(),
           addBtn,
         ),
       ),

@@ -34,3 +34,12 @@ export async function deleteTag(db: D1Database, id: number): Promise<boolean> {
   const res = await db.prepare('DELETE FROM tags WHERE id = ?').bind(id).run();
   return res.meta.changes > 0;
 }
+
+export async function renameTag(db: D1Database, id: number, name: string): Promise<boolean> {
+  const res = await db.prepare('UPDATE tags SET name = ? WHERE id = ?').bind(name, id).run();
+  return res.meta.changes > 0;
+}
+
+export async function getTagById(db: D1Database, id: number): Promise<{ id: number; name: string } | null> {
+  return db.prepare('SELECT id, name FROM tags WHERE id = ?').bind(id).first<{ id: number; name: string }>();
+}
