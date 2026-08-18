@@ -5,7 +5,6 @@ import type { Book } from '../types';
 import { h, toast, renderCoverPlaceholder, renderStars, iconList, iconGrid, iconEdit, iconPlus, iconBookOpen } from '../ui';
 import { renderDrawer } from './detail-drawer';
 import { openBookForm } from './book-form';
-import { renderImportExportButtons } from './import-export';
 import { refresh } from '../refresh';
 
 const STATUS_LABEL: Record<string, string> = { unread: '未读', reading: '在读', finished: '读完' };
@@ -60,6 +59,19 @@ export function renderBookList(container: HTMLElement) {
     sortSel.append(h('option', { value: v, selected: (state.filters.sort ?? 'updated_desc') === v ? '' : null }, label));
   }
 
+  // 阅读状态显示筛选（作为顶栏筛选）
+  const statusSel = h('select', {
+    class: 'text-sm bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-lg px-3 py-1.5 text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent)]/50 outline-none',
+    onchange: () => {
+      const v = statusSel.value === 'all' ? undefined : statusSel.value;
+      setState({ filters: { ...state.filters, status: v as typeof state.filters.status } });
+      void refresh();
+    },
+  });
+  for (const [v, label] of [['all', '全部状态'], ['unread', '未读'], ['reading', '在读'], ['finished', '已读完']] as const) {
+    statusSel.append(h('option', { value: v, selected: (state.filters.status ?? 'all') === v ? '' : null }, label));
+  }
+
   const viewToggle = h('div', { class: 'hidden sm:flex items-center bg-[var(--bg-page)] rounded-lg p-1' },
     h('button', {
       class: 'p-1.5 rounded-md transition-all text-[var(--text-secondary)] ' + (state.view === 'table'
@@ -96,8 +108,9 @@ export function renderBookList(container: HTMLElement) {
         h('div', { class: 'flex items-center gap-2' },
           h('span', { class: 'text-xs text-[var(--text-muted)] hidden sm:inline' }, '排序：'),
           sortSel,
+          h('span', { class: 'text-xs text-[var(--text-muted)] hidden sm:inline' }, '状态：'),
+          statusSel,
           viewToggle,
-          renderImportExportButtons(),
           addBtn,
         ),
       ),

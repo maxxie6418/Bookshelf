@@ -11,7 +11,8 @@ exportRoutes.use(requireAuth);
 
 const statusLabel: Record<string, string> = { unread: '未读', reading: '在读', finished: '已读完' };
 
-function bookToRow(b: {
+// 将书籍行映射为 CSV 行（供 session 导出与 AI Agent 导出复用）
+export function exportBookToRow(b: {
   title: string;
   author: string | null;
   translator: string | null;
@@ -58,7 +59,7 @@ exportRoutes.get('/template', async (c) => {
 // GET /api/export/books —— 全部未删除藏书
 exportRoutes.get('/books', async (c) => {
   const books = await listAllBooks(c.env.DB);
-  const csv = toCsv(books.map((b) => bookToRow(b)));
+  const csv = toCsv(books.map((b) => exportBookToRow(b)));
   return new Response(csv, {
     headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="books-${new Date().toISOString().slice(0, 10)}.csv"` },
   });
