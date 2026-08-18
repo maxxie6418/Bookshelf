@@ -10,6 +10,8 @@ import { checkWriteLimit, checkDeleteLimit } from '../lib/agent-ratelimit';
 import * as books from '../lib/books';
 import * as categories from '../lib/categories';
 import * as tags from '../lib/tags';
+import { toCsv } from '../lib/csv';
+import { exportBookToRow } from './export';
 
 export const agentRoutes = new Hono<{ Bindings: Env; Variables: { agentHash: string } }>();
 agentRoutes.use(requireAgentKey);
@@ -127,4 +129,13 @@ agentRoutes.delete('/books/:id', async (c) => {
   const ok = await books.softDelete(c.env.DB, id);
   if (!ok) return err(c, 'NOT_FOUND', '不存在或已在回收站', 404);
   return c.json({ data: { id, deleted: true } });
+});
+
+// GET /api/agent/export/books（导出全部未删除藏书为 CSV，供 AI 使用；导出不纳入写/删限频）
+agentRoutes.get('/export/books', async (c) => {
+  const all = await books.listAllBooks(c.env.DB);
+  const csv = toCsv(all.map((b) => exportBookToRow(b)));
+  return new Response(csv, {
+    headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="books-${new Date().toISOString().slice(0, 10)}.csv"` },
+  });
 });

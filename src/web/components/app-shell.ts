@@ -1,20 +1,12 @@
 // 应用外壳：顶栏（搜索/主题/设置/退出）+ 侧栏（筛选）+ 主区（列表/回收站）
 import { api } from '../api';
 import { setState, state, subscribe } from '../state';
-import { h, iconSun, iconMoon, iconSettings, iconLogout, iconTrash, iconSearch, iconKey, iconExternal } from '../ui';
+import { h, iconSun, iconMoon, iconSettings, iconLogout, iconSearch, iconKey, iconGithub, iconCloudflare, iconDouban } from '../ui';
 import { refresh, refreshSidebar } from '../refresh';
 import { renderBookList } from './book-list';
 import { renderTrash } from './trash-panel';
 import { openSettings, openAgentSettings, toggleTheme } from './settings-panel';
 import { openManageCategories, openManageTags } from './manage-taxonomy';
-
-const STATUS = [['unread', '未读'], ['reading', '在读'], ['finished', '读完']] as const;
-
-const STATUS_META: Record<string, { label: string; dot: string; badgeBg: string; badgeText: string }> = {
-  unread:   { label: '未读',   dot: 'bg-[var(--text-muted)]',                 badgeBg: 'bg-[var(--bg-surface-hover)]', badgeText: 'text-[var(--text-secondary)]' },
-  reading:  { label: '在读',   dot: 'bg-[var(--accent)] status-reading-dot', badgeBg: 'bg-[var(--accent)]/10',        badgeText: 'text-[var(--accent)]' },
-  finished: { label: '已读完', dot: 'bg-[var(--accent)]',                      badgeBg: 'bg-[var(--bg-surface-hover)]', badgeText: 'text-[var(--text-secondary)]' },
-};
 
 export function mountAppShell(root: HTMLElement) {
   root.replaceChildren();
@@ -173,15 +165,7 @@ function renderSidebar(): HTMLElement {
           h('div', { class: 'text-xs text-[var(--text-muted)] mt-0.5' }, '在读'),
         ),
       ),
-      // 状态筛选
-      section('阅读状态', [
-        item('全部书籍', !f.status && !f.categoryId && !f.tag, total, () => clickFilter({ status: undefined, categoryId: undefined, tag: undefined }), 'bg-[var(--text-muted)]'),
-        ...STATUS.map(([v, label]) => {
-          const meta = STATUS_META[v];
-          return item(label, f.status === v, statusCounts[v as keyof typeof statusCounts], () => clickFilter({ status: f.status === v ? undefined : v }), meta.dot);
-        }),
-      ]),
-      // 分类筛选
+      // 分类筛选（置顶，最醒目）
       section('分类', state.categories.map((c) =>
         item(c.name, f.categoryId === c.id, c.count, () => clickFilter({ categoryId: f.categoryId === c.id ? undefined : c.id })),
       ), manageBtn(openManageCategories)),
@@ -189,20 +173,13 @@ function renderSidebar(): HTMLElement {
       section('标签', state.tags.map((t) =>
         item(`#${t.name}`, f.tag === t.name, t.count, () => clickFilter({ tag: f.tag === t.name ? undefined : t.name })),
       ), manageBtn(openManageTags)),
-      // 管理
-      section('管理', [
-        item(h('span', { class: 'flex items-center gap-2.5' }, iconTrash(16), '回收站'), state.viewMode === 'trash', undefined, () => {
-          setState({ viewMode: state.viewMode === 'trash' ? 'main' : 'trash' });
-          void refresh();
-        }),
-      ]),
     ),
     // 底部：外部快捷链接 + 操作按钮（贴底）
     h('div', { class: 'mt-auto pt-3' },
       h('div', { class: 'flex items-center justify-around pt-2 pb-3 border-t border-[var(--border-subtle)]' },
-        extLink('https://github.com/maxxie6418/Bookshelf', '项目 GitHub', iconExternal),
-        extLink('https://dash.cloudflare.com', 'Cloudflare', iconExternal),
-        extLink('https://book.douban.com/', '豆瓣读书', iconExternal),
+        extLink('https://github.com/maxxie6418/Bookshelf', '项目 GitHub', iconGithub),
+        extLink('https://dash.cloudflare.com', 'Cloudflare', iconCloudflare),
+        extLink('https://book.douban.com/', '豆瓣读书', iconDouban),
       ),
       h('div', { class: 'flex items-center justify-around pt-3 border-t border-[var(--border-subtle)]' },
         h('button', {

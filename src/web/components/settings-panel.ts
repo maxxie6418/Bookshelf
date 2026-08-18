@@ -1,7 +1,9 @@
-// 设置面板：修改口令 / 暗色切换 / AI 配置说明 / AI Agent Keys 管理
+// 设置面板：修改口令 / 数据管理（导入导出 / 回收站）
 import { api } from '../api';
 import { setState, state } from '../state';
-import { h, toast, modal, iconSun, iconMoon, iconTrash, confirmDialog } from '../ui';
+import { h, toast, modal, iconTrash, confirmDialog } from '../ui';
+import { renderImportExportButtons } from './import-export';
+import { refresh } from '../refresh';
 
 const inputCls = 'w-full px-3.5 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 placeholder:text-[var(--text-muted)] transition-colors';
 
@@ -151,12 +153,21 @@ export function openSettings() {
   const newPwd = h('input', { type: 'password', placeholder: '新口令（至少 6 位）', class: inputCls + ' mt-3' });
   const newPwd2 = h('input', { type: 'password', placeholder: '再次输入新口令', class: inputCls + ' mt-3' });
 
-  const themeToggle = h('button', {
-    class: 'inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-[var(--border-default)] text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] transition-colors',
-    onclick: () => toggleTheme(),
-  }, state.theme === 'dark' ? iconSun(18) : iconMoon(18), state.theme === 'dark' ? '切换亮色' : '切换暗色');
+  let overlay: HTMLElement = h('div', {});
+  const openTrash = () => {
+    overlay.remove();
+    setState({ viewMode: 'trash' });
+    void refresh();
+  };
 
-  const agentKeysWrap = h('div', {});
+  const dataRow = h('div', { class: 'flex items-center gap-2' },
+    renderImportExportButtons(),
+    h('button', {
+      class: 'inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-[var(--border-default)] text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] transition-colors',
+      title: '回收站（管理已删除的书籍）',
+      onclick: openTrash,
+    }, iconTrash(16), '回收站'),
+  );
 
   const content = h('div', { class: 'space-y-5' },
     h('div', {},
@@ -180,21 +191,18 @@ export function openSettings() {
       }, '保存新口令'),
     ),
     h('div', {},
-      h('h3', { class: 'text-sm font-medium text-[var(--text-primary)] mb-2' }, '外观'),
-      themeToggle,
-    ),
-    h('div', {},
-      h('h3', { class: 'text-sm font-medium text-[var(--text-primary)] mb-2' }, 'AI Agent Keys'),
-      agentKeysWrap,
+      h('h3', { class: 'text-sm font-medium text-[var(--text-primary)] mb-2' }, '数据管理'),
+      dataRow,
+      h('p', { class: 'text-xs text-[var(--text-secondary)] mt-2' }, '导出「模版」获取空白表头、「内容」导出全部藏书；导入支持 CSV，二次确认后写入。'),
     ),
     h('div', { class: 'text-xs text-[var(--text-secondary)] leading-relaxed' },
       h('h3', { class: 'text-sm font-medium text-[var(--text-primary)] mb-1' }, 'AI 查询'),
-      h('p', {}, 'AI 查询（M4）使用 OpenAI 兼容接口，API Key 通过部署 secret 配置，本面板不收集密钥。'),
+      h('p', {}, 'AI 查询（M4）使用 OpenAI 兼容接口，API Key 通过部署 secret 配置，本面板不收集密钥。AI Agent 接入在侧栏「Agent」配置。'),
       h('p', { class: 'mt-1' }, `当前登录：${state.user?.username ?? 'admin'}`),
     ),
   );
-  modal('设置', content);
-  void renderAgentKeysSection(agentKeysWrap);
+
+  overlay = modal('设置', content);
 }
 
 export function toggleTheme() {
