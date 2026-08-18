@@ -80,4 +80,9 @@ export const api = {
   listTags: () => request<Tag[]>('/tags'),
   createTag: (name: string) => request<Tag>('/tags', { method: 'POST', body: JSON.stringify({ name }) }),
   deleteTag: (id: number) => request<void>(`/tags/${id}`, { method: 'DELETE' }),
+
+  // AI agent keys（管理）
+  listAgentKeys: () => request<{ hash: string; label: string; created_at: string; prefix: string }[]>('/agent-keys'),
+  createAgentKey: (label: string) => request<{ hash: string; label: string; created_at: string; prefix: string; key: string }>('/agent-keys', { method: 'POST', body: JSON.stringify({ label }) }),
+  revokeAgentKey: (hash: string) => request<void>(`/agent-keys/${hash}`, { method: 'DELETE' }),
 };
