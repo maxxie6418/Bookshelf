@@ -6,7 +6,7 @@
 
 [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/maxxie6418/Bookshelf)
 
-> 点击按钮会：克隆仓库到你的账号 → 自动创建并绑定 D1 / R2 / KV → 读取 `.dev.vars.example` 让你在向导里填写 secret（`SESSION_SECRET` / `INITIAL_ADMIN_PASSWORD` / AI 密钥）→ 自动跑 D1 迁移 + 构建 + 部署。首次请求会自动 seed 初始管理员（口令即你填写的 `INITIAL_ADMIN_PASSWORD`，首登强制修改）。
+> 点击按钮会：克隆仓库到你的账号 → 自动创建并绑定 D1 / R2 / KV → 读取 `.dev.vars.example` 让你在向导里填写 secret（`SESSION_SECRET` / `INITIAL_ADMIN_PASSWORD` / AI 密钥）→ 自动跑 D1 迁移 + 构建 + 部署。首次请求会自动 seed 初始管理员：用户名 `admin`，口令为你填写的 `INITIAL_ADMIN_PASSWORD`；未填写则默认为 `admin123`（首登强制改口令，请部署后立即登录修改）。
 
 ## 技术栈
 
@@ -51,7 +51,7 @@ npm run deploy           # node scripts/deploy.mjs：构建 → wrangler deploy 
 
 ```bash
 npx wrangler secret put SESSION_SECRET
-npx wrangler secret put INITIAL_ADMIN_PASSWORD   # 首次请求会自动 seed 初始管理员
+npx wrangler secret put INITIAL_ADMIN_PASSWORD   # 可选；未设置时默认 admin/admin123（首次请求自动 seed，首登强制改口令）
 npx wrangler secret put AI_BASE_URL   # M4 用，可选
 npx wrangler secret put AI_API_KEY    # M4 用，可选
 ```
