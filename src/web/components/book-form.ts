@@ -13,10 +13,42 @@ export function openBookForm(book?: Book) {
   const isEdit = !!book;
   let overlay: HTMLElement | null = null;
 
-  // 抓取预填（M3 接入前先留桩：可直接填字段）
+  // 抓取预填：调 POST /api/books/metadata/fetch 后回填表单
+  const fetchBtn = h('button', {
+    class: 'shrink-0 px-3 py-2 rounded-xl border border-[var(--border-default)] text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] transition-colors inline-flex items-center gap-1.5',
+    onclick: () => void doFetch(doubanUrl.value),
+  }, iconSearch(16), '抓取');
   const doFetch = async (urlOrIsbn: string) => {
-    // TODO(M3): 调 POST /api/books/metadata/fetch 后回填
-    toast('抓取预填将在 M3 接入，当前请手动填写', 'success');
+    const input = urlOrIsbn.trim();
+    if (!input) {
+      toast('请先输入豆瓣链接', 'error');
+      return;
+    }
+    fetchBtn.disabled = true;
+    fetchBtn.textContent = '抓取中…';
+    try {
+      const d = await api.fetchMetadata(
+        /^\d{10,13}[\dXx]$/.test(input) ? { isbn: input } : { url: input },
+      );
+      title.value = d.title ?? '';
+      author.value = d.author ?? '';
+      translator.value = d.translator ?? '';
+      publisher.value = d.publisher ?? '';
+      publishYear.value = d.publish_year != null ? String(d.publish_year) : '';
+      pageCount.value = d.page_count != null ? String(d.page_count) : '';
+      originalTitle.value = d.original_title ?? '';
+      isbn.value = d.isbn ?? '';
+      description.value = d.description ?? '';
+      coverUrl.value = d.cover_url ?? '';
+      doubanUrl.value = d.douban_url ?? input;
+      rating.value = d.douban_rating != null ? String(d.douban_rating) : '';
+      toast('抓取成功，已回填');
+    } catch (e) {
+      toast((e as Error).message, 'error');
+    } finally {
+      fetchBtn.disabled = false;
+      fetchBtn.textContent = '抓取';
+    }
   };
 
   const title = h('input', { class: inputCls, value: book?.title ?? '', placeholder: '书名 *' });
@@ -46,10 +78,7 @@ export function openBookForm(book?: Book) {
 
   const fetchBar = h('div', { class: 'flex gap-2' },
     doubanUrl,
-    h('button', {
-      class: 'shrink-0 px-3 py-2 rounded-xl border border-[var(--border-default)] text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] transition-colors inline-flex items-center gap-1.5',
-      onclick: () => void doFetch(doubanUrl.value),
-    }, iconSearch(16), '抓取'),
+    fetchBtn,
   );
 
   const grid2 = (a: HTMLElement, b: HTMLElement) => h('div', { class: 'grid grid-cols-2 gap-3' }, a, b);

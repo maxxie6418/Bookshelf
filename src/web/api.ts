@@ -53,6 +53,24 @@ export const api = {
   permanentDelete: (id: number) => request<void>(`/books/trash/${id}`, { method: 'DELETE' }),
   clearTrash: () => request<{ deleted: number }>('/books/trash', { method: 'DELETE' }),
 
+  // metadata（豆瓣抓取）
+  fetchMetadata: (input: { url?: string; isbn?: string }) =>
+    request<{
+      title: string | null;
+      author: string | null;
+      translator: string | null;
+      publisher: string | null;
+      publish_year: number | null;
+      page_count: number | null;
+      original_title: string | null;
+      isbn: string | null;
+      description: string | null;
+      cover_url: string | null;
+      douban_url: string | null;
+      douban_rating: number | null;
+      source: string;
+    }>('/books/metadata/fetch', { method: 'POST', body: JSON.stringify(input) }),
+
   // categories
   listCategories: () => request<Category[]>('/categories'),
   createCategory: (name: string, color: string) => request<Category>('/categories', { method: 'POST', body: JSON.stringify({ name, color }) }),
