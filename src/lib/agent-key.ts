@@ -12,6 +12,7 @@ export interface AgentKeyMeta {
   label: string;
   created_at: string;
   prefix: string; // 明文前 4 位，便于辨认
+  last_used_at?: string | null; // 上次鉴权成功时间（节流写入）
 }
 
 // 对明文 key 做 SHA-256 哈希（Worker Web Crypto）
@@ -38,11 +39,22 @@ async function validKey(kv: KVNamespace, hash: string): Promise<AgentKeyMeta | n
   return JSON.parse(raw) as AgentKeyMeta;
 }
 
-// 校验 Bearer 明文 key，返回元数据或 null
+// 校验 Bearer 明文 key，返回元数据或 null；成功时节流记录 last_used_at
+const lastUsageWrite: Record<string, number> = {};
+const LAST_USAGE_THROTTLE_MS = 60_000;
+
 export async function verifyAgentKey(kv: KVNamespace, plain: string): Promise<AgentKeyMeta | null> {
   if (!plain) return null;
   const hash = await hashKey(plain.trim());
-  return validKey(kv, hash);
+  const meta = await validKey(kv, hash);
+  if (!meta) return null;
+  const now = Date.now();
+  if (!lastUsageWrite[hash] || now - lastUsageWrite[hash] >= LAST_USAGE_THROTTLE_MS) {
+    lastUsageWrite[hash] = now;
+    meta.last_used_at = new Date(now).toISOString();
+    await kv.put(KEY_PREFIX + hash, JSON.stringify(meta)).catch(() => undefined);
+  }
+  return meta;
 }
 
 // 列出全部活跃 key（仅元数据，不含明文）
@@ -83,6 +95,7 @@ export async function revokeAgentKey(kv: KVNamespace, hash: string): Promise<boo
   const next = existing.filter((m) => m.hash !== hash);
   if (next.length === existing.length) return false;
   await kv.delete(KEY_PREFIX + hash);
+  delete lastUsageWrite[hash];
   await kv.put(LIST_KEY, JSON.stringify(next.map((m) => m.hash)));
   // 清理该 key 的限频计数
   await kv.delete(`agent:rl:${hash}:write`).catch(() => undefined);

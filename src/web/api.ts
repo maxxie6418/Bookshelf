@@ -35,6 +35,15 @@ function qs(params: object): string {
   return s ? `?${s}` : '';
 }
 
+async function requestText(path: string, init?: RequestInit): Promise<string> {
+  const res = await fetch(BASE + path, { credentials: 'same-origin', ...init });
+  if (!res.ok) {
+    const body: any = await res.json().catch(() => null);
+    throw new ApiError(body?.error?.code ?? 'ERROR', body?.error?.message ?? `请求失败(${res.status})`, res.status);
+  }
+  return res.text();
+}
+
 export const api = {
   // auth
   login: (password: string) => request<User>('/auth/login', { method: 'POST', body: JSON.stringify({ password }) }),
@@ -74,15 +83,23 @@ export const api = {
   // categories
   listCategories: () => request<Category[]>('/categories'),
   createCategory: (name: string, color: string) => request<Category>('/categories', { method: 'POST', body: JSON.stringify({ name, color }) }),
+  updateCategory: (id: number, patch: { name?: string; color?: string }) => request<Category>(`/categories/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
   deleteCategory: (id: number) => request<void>(`/categories/${id}`, { method: 'DELETE' }),
 
   // tags
   listTags: () => request<Tag[]>('/tags'),
   createTag: (name: string) => request<Tag>('/tags', { method: 'POST', body: JSON.stringify({ name }) }),
+  updateTag: (id: number, name: string) => request<Tag>(`/tags/${id}`, { method: 'PATCH', body: JSON.stringify({ name }) }),
   deleteTag: (id: number) => request<void>(`/tags/${id}`, { method: 'DELETE' }),
 
   // AI agent keys（管理）
-  listAgentKeys: () => request<{ hash: string; label: string; created_at: string; prefix: string }[]>('/agent-keys'),
+  listAgentKeys: () => request<{ hash: string; label: string; created_at: string; prefix: string; last_used_at?: string | null }[]>('/agent-keys'),
   createAgentKey: (label: string) => request<{ hash: string; label: string; created_at: string; prefix: string; key: string }>('/agent-keys', { method: 'POST', body: JSON.stringify({ label }) }),
   revokeAgentKey: (hash: string) => request<void>(`/agent-keys/${hash}`, { method: 'DELETE' }),
+
+  // 导出/导入
+  exportTemplate: () => requestText('/export/template'),
+  exportBooks: () => requestText('/export/books'),
+  importPreview: (csv: string) => request<{ rows: any[]; summary: { total: number; valid: number; duplicate: number } }>('/import/books/preview', { method: 'POST', body: JSON.stringify({ csv }) }),
+  importBatch: (items: unknown[]) => request<{ created: number }>('/import/books/batch', { method: 'POST', body: JSON.stringify({ imports: items }) }),
 };

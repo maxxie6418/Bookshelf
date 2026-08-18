@@ -1,4 +1,5 @@
 import type { D1Database } from '@cloudflare/workers-types';
+import { normalizeTitle } from './csv';
 
 // ===== 类型 =====
 
@@ -150,6 +151,41 @@ export async function listBooks(db: D1Database, q: ListQuery) {
     items: listRes.results.map((r) => toBookJson(r, tagMap[r.id] ?? [])),
     total: countRes?.total ?? 0,
   };
+}
+
+// 导出用：分页拉取全部未删除书籍（每页 500，直至取完）
+export async function listAllBooks(db: D1Database): Promise<BookListItem[]> {
+  const out: BookListItem[] = [];
+  let offset = 0;
+  const pageSize = 500;
+  for (;;) {
+    const { items } = await listBooks(db, { trash: false, limit: pageSize, offset, sort: 'title_asc' });
+    out.push(...items);
+    if (items.length < pageSize) break;
+    offset += pageSize;
+  }
+  return out;
+}
+
+// 导入前：按书名规范化 / ISBN / 豆瓣链接 批量获取现有书籍，用于去重
+export async function mapExistingByKey(db: D1Database): Promise<{
+  byTitleNormalized: Map<string, BookListItem[]>;
+  byIsbn: Map<string, BookListItem>;
+  byDouban: Map<string, BookListItem>;
+}> {
+  const all = await listAllBooks(db);
+  const byTitleNormalized = new Map<string, BookListItem[]>();
+  const byIsbn = new Map<string, BookListItem>();
+  const byDouban = new Map<string, BookListItem>();
+  for (const b of all) {
+    const key = normalizeTitle(b.title);
+    const arr = byTitleNormalized.get(key) ?? [];
+    arr.push(b);
+    byTitleNormalized.set(key, arr);
+    if (b.isbn) byIsbn.set(b.isbn, b);
+    if (b.douban_url) byDouban.set(b.douban_url, b);
+  }
+  return { byTitleNormalized, byIsbn, byDouban };
 }
 
 export async function getBook(db: D1Database, id: number) {

@@ -10,6 +10,55 @@ interface AgentKey {
   label: string;
   created_at: string;
   prefix: string;
+  last_used_at?: string | null;
+}
+
+function formatTime(t?: string | null): string {
+  if (!t) return '从未使用';
+  return new Date(t).toLocaleString();
+}
+
+// 新 Key 明文：独立锁定模态，不点「我已保存，关闭」不会消失，可随时复制
+function showKeyPlaintext(plain: string, label: string) {
+  const overlay = h('div', { class: 'fixed inset-0 z-50 bg-[var(--overlay-bg)] flex items-center justify-center p-4 opacity-0 transition-all duration-300 ease-[var(--ease-out-expo)]' });
+  const copyBtn = h('button', {
+    class: 'flex-1 px-4 py-2.5 rounded-xl bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text)] text-sm font-medium transition-colors',
+    onclick: async () => {
+      try {
+        await navigator.clipboard.writeText(plain);
+        copyBtn.textContent = '已复制 ✓';
+        toast('Key 已复制');
+      } catch {
+        (codeTag as HTMLInputElement).select();
+        toast('自动复制失败，已全选，请按 Ctrl/Cmd+C', 'error');
+      }
+    },
+  }, '复制');
+  const codeTag = h('code', {
+    class: 'block break-all select-all bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-lg px-3 py-2.5 text-sm font-mono text-[var(--text-primary)]',
+    textContent: plain,
+  });
+  const done = h('button', {
+    class: 'flex-1 px-4 py-2.5 rounded-xl border border-[var(--border-default)] text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] transition-colors',
+    onclick: () => overlay.remove(),
+  }, '我已保存，关闭');
+  const box = h('div', { class: 'bg-[var(--bg-surface)] rounded-2xl shadow-2xl w-full max-w-xl p-6 border border-[var(--border-accent)] dark:border-[var(--border-default)] opacity-0 scale-95 transition-all duration-300 ease-[var(--ease-out-expo)]' },
+    h('div', { class: 'flex items-center justify-between mb-3' },
+      h('h2', { class: 'text-lg font-semibold text-[var(--text-primary)]' }, 'Key 已生成'),
+    ),
+    h('p', { class: 'text-sm text-[var(--text-secondary)] mb-3' },
+      `「${label || '未命名'}」的明文只会显示这一次，关闭后无法再查看，请立即复制并妥善保存：`),
+    codeTag,
+    h('div', { class: 'flex gap-3 mt-4' }, copyBtn, done),
+  );
+  overlay.append(box);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay && box.contains(done)) return; });
+  document.body.append(overlay);
+  requestAnimationFrame(() => {
+    overlay.classList.remove('opacity-0');
+    box.classList.remove('opacity-0', 'scale-95');
+    box.classList.add('opacity-100', 'scale-100');
+  });
 }
 
 async function renderAgentKeysSection(container: HTMLElement) {
@@ -35,7 +84,7 @@ async function renderAgentKeysSection(container: HTMLElement) {
                   h('code', { class: 'text-xs text-[var(--text-muted)] font-mono' }, `${k.prefix}••••••••`),
                 ),
                 h('div', { class: 'text-xs text-[var(--text-muted)] mt-0.5' },
-                  `创建于 ${new Date(k.created_at).toLocaleString()} · ${k.hash.slice(0, 8)}`),
+                  `创建于 ${new Date(k.created_at).toLocaleString()} · 上次使用：${formatTime(k.last_used_at)}`),
               ),
               h('button', {
                 class: 'p-1.5 rounded-lg text-[var(--text-muted)] hover:text-red-500 hover:bg-[var(--bg-surface-hover)] transition-colors shrink-0',
@@ -67,7 +116,7 @@ async function renderAgentKeysSection(container: HTMLElement) {
         try {
           const created = await api.createAgentKey(label.value);
           toast('Key 已创建，请立即复制保存（仅显示一次）');
-          showPlaintext(created.key, created.label);
+          showKeyPlaintext(created.key, created.label || label.value || '未命名');
           label.value = '';
           await refresh();
         } catch (e) {
@@ -75,28 +124,6 @@ async function renderAgentKeysSection(container: HTMLElement) {
         }
       },
     }, '生成新 Key');
-
-    const showPlaintext = (plain: string, l: string) => {
-      const box = h('div', { class: 'mt-3 rounded-xl border border-[var(--accent)]/40 bg-[var(--accent)]/5 p-3' },
-        h('p', { class: 'text-xs text-[var(--text-muted)] mb-2' }, `以下是「${l || '未命名'}」的唯一明文，关闭后无法再查看，请妥善保存：`),
-        h('div', { class: 'flex items-center gap-2' },
-          h('code', { class: 'flex-1 min-w-0 break-all select-all bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-lg px-3 py-2 text-xs font-mono text-[var(--text-primary)]' }, plain),
-          h('button', {
-            class: 'px-3 py-2 rounded-lg border border-[var(--border-default)] text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] transition-colors',
-            onclick: async () => {
-              try {
-                await navigator.clipboard.writeText(plain);
-                toast('已复制');
-              } catch {
-                toast('复制失败，请手动选择复制', 'error');
-              }
-            },
-          }, '复制'),
-        ),
-      );
-      container.append(box);
-      box.scrollIntoView({ block: 'center' });
-    };
 
     container.append(
       h('div', { class: 'text-xs text-[var(--text-secondary)] mb-3 leading-relaxed' },

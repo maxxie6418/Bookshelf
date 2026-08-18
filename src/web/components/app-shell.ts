@@ -1,11 +1,12 @@
 // 应用外壳：顶栏（搜索/主题/设置/退出）+ 侧栏（筛选）+ 主区（列表/回收站）
 import { api } from '../api';
 import { setState, state, subscribe } from '../state';
-import { h, iconSun, iconMoon, iconSettings, iconLogout, iconTrash, iconSearch, iconKey } from '../ui';
+import { h, iconSun, iconMoon, iconSettings, iconLogout, iconTrash, iconSearch, iconKey, iconExternal } from '../ui';
 import { refresh, refreshSidebar } from '../refresh';
 import { renderBookList } from './book-list';
 import { renderTrash } from './trash-panel';
 import { openSettings, openAgentSettings, toggleTheme } from './settings-panel';
+import { openManageCategories, openManageTags } from './manage-taxonomy';
 
 const STATUS = [['unread', '未读'], ['reading', '在读'], ['finished', '读完']] as const;
 
@@ -133,11 +134,29 @@ function renderSidebar(): HTMLElement {
       count != null ? h('span', { class: 'text-xs text-[var(--text-muted)] font-mono shrink-0' }, String(count)) : null,
     );
 
-  const section = (title: string, children: HTMLElement[]) =>
+  const section = (title: string, children: HTMLElement[], extra?: HTMLElement) =>
     h('div', { class: 'mb-5' },
-      h('h3', { class: 'text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-2 px-3' }, title),
+      h('div', { class: 'flex items-center justify-between px-3 mb-2' },
+        h('h3', { class: 'text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider' }, title),
+        extra ?? null,
+      ),
       ...children,
     );
+
+  const manageBtn = (onclick: () => void) =>
+    h('button', {
+      class: 'text-[11px] text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors',
+      onclick,
+    }, '管理');
+
+  const extLink = (href: string, title: string, icon: (s?: number) => HTMLElement) =>
+    h('a', {
+      class: 'p-2 rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors text-[var(--text-secondary)] hover:text-[var(--accent)]',
+      href,
+      target: '_blank',
+      rel: 'noopener noreferrer',
+      title,
+    }, icon(18));
 
   const total = state.allBooks?.length ?? state.total ?? 0;
 
@@ -165,11 +184,11 @@ function renderSidebar(): HTMLElement {
       // 分类筛选
       section('分类', state.categories.map((c) =>
         item(c.name, f.categoryId === c.id, c.count, () => clickFilter({ categoryId: f.categoryId === c.id ? undefined : c.id })),
-      )),
+      ), manageBtn(openManageCategories)),
       // 标签筛选
       section('标签', state.tags.map((t) =>
         item(`#${t.name}`, f.tag === t.name, t.count, () => clickFilter({ tag: f.tag === t.name ? undefined : t.name })),
-      )),
+      ), manageBtn(openManageTags)),
       // 管理
       section('管理', [
         item(h('span', { class: 'flex items-center gap-2.5' }, iconTrash(16), '回收站'), state.viewMode === 'trash', undefined, () => {
@@ -178,31 +197,38 @@ function renderSidebar(): HTMLElement {
         }),
       ]),
     ),
-    // 底部操作区（贴底）
-    h('div', { class: 'mt-auto pt-4 border-t border-[var(--border-subtle)] flex items-center justify-around' },
-      h('button', {
-        class: 'p-2 rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors text-[var(--text-secondary)]',
-        title: '切换主题',
-        onclick: toggleTheme,
-      }, state.theme === 'dark' ? iconSun(18) : iconMoon(18)),
-      h('button', {
-        class: 'p-2 rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors text-[var(--text-secondary)]',
-        title: 'Agent 设置',
-        onclick: openAgentSettings,
-      }, iconKey(18)),
-      h('button', {
-        class: 'p-2 rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors text-[var(--text-secondary)]',
-        title: '设置',
-        onclick: openSettings,
-      }, iconSettings(18)),
-      h('button', {
-        class: 'p-2 rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors text-[var(--text-secondary)]',
-        title: '退出',
-        onclick: async () => {
-          await api.logout().catch(() => undefined);
-          window.location.reload();
-        },
-      }, iconLogout(18)),
+    // 底部：外部快捷链接 + 操作按钮（贴底）
+    h('div', { class: 'mt-auto pt-3' },
+      h('div', { class: 'flex items-center justify-around pt-2 pb-3 border-t border-[var(--border-subtle)]' },
+        extLink('https://github.com/maxxie6418/Bookshelf', '项目 GitHub', iconExternal),
+        extLink('https://dash.cloudflare.com', 'Cloudflare', iconExternal),
+        extLink('https://book.douban.com/', '豆瓣读书', iconExternal),
+      ),
+      h('div', { class: 'flex items-center justify-around pt-3 border-t border-[var(--border-subtle)]' },
+        h('button', {
+          class: 'p-2 rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors text-[var(--text-secondary)]',
+          title: '切换主题',
+          onclick: toggleTheme,
+        }, state.theme === 'dark' ? iconSun(18) : iconMoon(18)),
+        h('button', {
+          class: 'p-2 rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors text-[var(--text-secondary)]',
+          title: 'Agent 设置',
+          onclick: openAgentSettings,
+        }, iconKey(18)),
+        h('button', {
+          class: 'p-2 rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors text-[var(--text-secondary)]',
+          title: '设置',
+          onclick: openSettings,
+        }, iconSettings(18)),
+        h('button', {
+          class: 'p-2 rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors text-[var(--text-secondary)]',
+          title: '退出',
+          onclick: async () => {
+            await api.logout().catch(() => undefined);
+            window.location.reload();
+          },
+        }, iconLogout(18)),
+      ),
     ),
   );
 }
