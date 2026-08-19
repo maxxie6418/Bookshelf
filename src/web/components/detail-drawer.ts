@@ -1,7 +1,7 @@
 // 详情抽屉
 import { api } from '../api';
 import type { Book } from '../types';
-import { h, toast, confirmDialog, renderCoverPlaceholder, renderStars, iconClose, iconEdit } from '../ui';
+import { h, toast, confirmDialog, renderStars, iconClose, iconEdit } from '../ui';
 import { createBookEditForm, labelCls } from './book-edit-form';
 import { refresh, refreshSidebar } from '../refresh';
 
@@ -30,17 +30,6 @@ function fieldLink(label: string, url: string | null | undefined): HTMLElement {
       ? h('a', { href: url!, target: '_blank', rel: 'noreferrer', class: 'font-medium text-[var(--accent)] hover:underline break-all' }, url)
       : h('div', { class: 'text-[var(--text-muted)]' }, '*'),
   );
-}
-
-function coverBlock(book: Book): HTMLElement {
-  if (book.cover_url) {
-    return h('img', {
-      src: book.cover_url,
-      alt: book.title,
-      class: 'w-full h-full object-cover',
-    });
-  }
-  return renderCoverPlaceholder(book, 'grid');
 }
 
 // 编辑态字段
@@ -139,13 +128,19 @@ export function renderDrawer(book: Book) {
   const footer = h('div', { class: 'shrink-0 bg-[var(--bg-surface)]' });
   drawer.append(content, footer);
 
-  // 顶部封面头（展示态使用）
+  // 顶部封面头：封面放大模糊做渐变填充背景（不完整居中显示），并压缩高度让正文上移
   function coverHeader(current: Book) {
-    return h('div', { class: 'relative h-56 sm:h-64 overflow-hidden bg-[var(--bg-page)]' },
-      h('div', { class: 'absolute inset-0 flex items-center justify-center p-8' },
-        h('div', { class: 'w-28 sm:w-32 aspect-[3/4] rounded-lg overflow-hidden shadow-2xl' }, coverBlock(current)),
-      ),
-      h('div', { class: 'absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-[var(--bg-surface)] via-[var(--bg-surface)]/80 to-transparent' },
+    const backLayer = current.cover_url
+      ? h('img', {
+          src: current.cover_url,
+          alt: '',
+          class: 'absolute -inset-x-10 -inset-y-6 w-[calc(100%+5rem)] h-[calc(100%+3rem)] object-cover blur-xl scale-110 opacity-70',
+        })
+      : null;
+    return h('div', { class: 'relative h-40 sm:h-48 overflow-hidden bg-[var(--bg-page)]' },
+      backLayer,
+      h('div', { class: 'absolute inset-0 bg-gradient-to-t from-[var(--bg-surface)] via-[var(--bg-surface)]/60 to-[var(--bg-surface)]/30' }),
+      h('div', { class: 'absolute bottom-0 left-0 right-0 p-5 pt-10' },
         h('h2', { class: 'text-2xl sm:text-3xl font-bold text-[var(--text-primary)] font-display drop-shadow-sm' }, current.title),
         current.original_title ? h('p', { class: 'text-[var(--text-secondary)] text-sm mt-1' }, current.original_title) : undefined,
       ),
@@ -171,7 +166,7 @@ export function renderDrawer(book: Book) {
         ),
         current.rating ? renderStars(current.rating, 'w-4 h-4') : null,
       ),
-      // 书籍本身的属性：统一容器框起来
+      // 书籍本身的属性：统一容器框起来（含简介，超 6 行滚动浏览）
       h('div', { class: 'rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4' },
         h('div', { class: 'text-xs font-medium text-[var(--text-muted)] mb-2.5' }, '书籍属性'),
         h('div', { class: 'grid grid-cols-2 gap-x-4 gap-y-3 text-sm' },
@@ -183,11 +178,11 @@ export function renderDrawer(book: Book) {
           field('页数', current.page_count != null ? `${current.page_count} 页` : null),
           fieldLink('豆瓣链接', current.douban_url),
         ),
+        current.description ? h('div', { class: 'mt-3 pt-3 border-t border-[var(--border-subtle)]' },
+          h('div', { class: 'text-xs font-medium text-[var(--text-muted)] mb-1.5' }, '简介'),
+          h('div', { class: 'text-sm leading-6 text-[var(--text-secondary)] max-h-36 overflow-y-auto pr-1 whitespace-pre-wrap' }, current.description),
+        ) : null,
       ),
-      current.description ? h('div', {},
-        h('div', { class: 'text-xs text-[var(--text-muted)] mb-2' }, '简介'),
-        h('p', { class: 'text-sm leading-relaxed text-[var(--text-secondary)]' }, current.description),
-      ) : null,
       current.tags.length > 0 ? h('div', {},
         h('div', { class: 'text-xs text-[var(--text-muted)] mb-2' }, '标签'),
         h('div', { class: 'flex flex-wrap gap-2' },
