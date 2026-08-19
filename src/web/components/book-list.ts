@@ -5,7 +5,7 @@ import type { Book } from '../types';
 import { h, toast, renderCoverPlaceholder, renderStars, iconList, iconGrid, iconEdit, iconPlus, iconBookOpen } from '../ui';
 import { renderDrawer } from './detail-drawer';
 import { openBookForm } from './book-form';
-import { refresh } from '../refresh';
+import { refresh, PAGE_SIZE } from '../refresh';
 
 const STATUS_LABEL: Record<string, string> = { unread: '未读', reading: '在读', finished: '读完' };
 
@@ -255,6 +255,32 @@ function renderListContent(list: HTMLElement) {
   }
   if (state.view === 'table') list.append(renderTable());
   else list.append(renderGrid());
+  const pag = renderPagination();
+  if (pag) list.append(pag);
+}
+
+// 翻页控件：上一页 / 页码指示 / 下一页
+function renderPagination(): HTMLElement | null {
+  const totalPages = Math.max(1, Math.ceil(state.total / PAGE_SIZE));
+  if (totalPages <= 1) return null;
+  const cur = Math.min(Math.max(state.page, 1), totalPages);
+  const wrap = h('div', { class: 'flex items-center justify-center gap-2 pt-8' },
+    h('span', { class: 'text-sm text-[var(--text-muted)] mr-2' }, `共 ${state.total} 本 · 第 ${cur}/${totalPages} 页`),
+    pageBtn('上一页', cur > 1, () => { setState({ page: cur - 1 }); void refresh(false); }),
+    pageBtn('下一页', cur < totalPages, () => { setState({ page: cur + 1 }); void refresh(false); }),
+  );
+  return wrap;
+}
+
+function pageBtn(label: string, enabled: boolean, onclick: () => void): HTMLElement {
+  return h('button', {
+    class: 'px-4 py-2 rounded-lg text-sm font-medium border transition-all ' +
+      (enabled
+        ? 'border-[var(--border-default)] text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]'
+        : 'border-[var(--border-subtle)] text-[var(--text-muted)] opacity-50 cursor-not-allowed'),
+    disabled: enabled ? undefined : 'disabled',
+    onclick: enabled ? onclick : undefined,
+  }, label);
 }
 
 function renderTable(): HTMLElement {
