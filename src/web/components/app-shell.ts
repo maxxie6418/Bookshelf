@@ -41,7 +41,7 @@ export function mountAppShell(root: HTMLElement) {
             ),
           ),
           h('span', { class: 'text-lg font-bold tracking-tight font-display hidden sm:block' }, '我的书架'),
-          h('span', { class: 'text-[11px] text-[var(--text-muted)] hidden sm:block leading-none mt-1' }, 'v1.0.0'),
+          h('span', { class: 'text-[11px] text-[var(--text-muted)] hidden sm:block leading-none mt-1' }, 'v0.0.1'),
         ),
         // 搜索（桌面端）
         h('div', { class: 'hidden md:flex flex-1 max-w-2xl mx-8' },
