@@ -252,11 +252,11 @@ export function iconChevronLeft(size?: number) {
   return svgIcon(h('path', { d: 'M15.75 19.5 8.25 12l7.5-7.5' }), size);
 }
 
-export function modal(title: string, content: HTMLElement, onClose?: () => void): HTMLElement {
+export function modal(title: string, content: HTMLElement, onClose?: () => void, sizeClass = 'max-w-2xl'): HTMLElement {
   const overlay = h('div', { class: 'fixed inset-0 z-40 bg-[var(--overlay-bg)] flex items-start justify-center p-4 pt-16 overflow-y-auto opacity-0 transition-all duration-300 ease-[var(--ease-out-expo)]' });
   const box = h(
     'div',
-    { class: 'bg-[var(--bg-surface)] rounded-2xl shadow-2xl w-full max-w-2xl p-6 border border-[var(--border-default)] opacity-0 scale-95 transition-all duration-300 ease-[var(--ease-out-expo)]' },
+    { class: `bg-[var(--bg-surface)] rounded-2xl shadow-2xl w-full ${sizeClass} p-6 border border-[var(--border-default)] opacity-0 scale-95 transition-all duration-300 ease-[var(--ease-out-expo)]` },
     h(
       'div',
       { class: 'flex items-center justify-between mb-4' },

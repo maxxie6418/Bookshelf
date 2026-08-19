@@ -113,11 +113,11 @@ function copyablePrompt(title: string, body: string): HTMLElement {
     },
   }, '复制');
   return h('div', { class: 'rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] overflow-hidden' },
-    h('div', { class: 'flex items-center justify-between gap-2 px-3 py-2 border-b border-[var(--border-subtle)]' },
-      h('div', { class: 'text-xs font-medium text-[var(--text-primary)]' }, title),
+    h('div', { class: 'flex items-center justify-between gap-3 px-4 py-3 border-b border-[var(--border-subtle)] bg-[var(--bg-surface-hover)]/40' },
+      h('div', { class: 'text-sm font-medium text-[var(--text-primary)]' }, title),
       copyBtn,
     ),
-    h('pre', { class: 'px-3 py-2.5 text-xs leading-relaxed text-[var(--text-secondary)] whitespace-pre-wrap font-sans max-h-48 overflow-y-auto' }, body),
+    h('pre', { class: 'px-4 py-4 text-[13px] leading-relaxed text-[var(--text-secondary)] whitespace-pre-wrap font-sans max-h-64 overflow-y-auto' }, body),
   );
 }
 
@@ -137,10 +137,10 @@ function copyableValue(label: string, value: string): HTMLElement {
       }
     },
   }, '复制');
-  return h('div', { class: 'flex items-center justify-between gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 mb-2' },
+  return h('div', { class: 'flex items-center justify-between gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-3' },
     h('div', { class: 'min-w-0' },
-      h('div', { class: 'text-xs text-[var(--text-muted)] mb-0.5' }, label),
-      h('code', { class: 'block text-xs font-mono text-[var(--accent)] break-all select-all' }, value),
+      h('div', { class: 'text-xs text-[var(--text-muted)] mb-1' }, label),
+      h('code', { class: 'block text-sm font-mono text-[var(--accent)] break-all select-all' }, value),
     ),
     copyBtn,
   );
@@ -160,9 +160,9 @@ async function renderAgentKeysSection(container: HTMLElement) {
   const render = () => {
     container.replaceChildren();
     const items = keys.length
-      ? h('ul', { class: 'space-y-2' },
+      ? h('ul', { class: 'space-y-3' },
           ...keys.map((k) =>
-            h('li', { class: 'flex items-center justify-between gap-3 rounded-xl border border-[var(--border-default)] px-3 py-2' },
+            h('li', { class: 'flex items-center justify-between gap-3 rounded-xl border border-[var(--border-default)] px-4 py-3' },
               h('div', { class: 'min-w-0' },
                 h('div', { class: 'flex items-center gap-2 text-sm text-[var(--text-primary)]' },
                   h('span', {}, k.label || '未命名'),
@@ -234,14 +234,21 @@ async function renderAgentKeysSection(container: HTMLElement) {
     }, '生成新 Key');
 
     container.append(
-      h('div', { class: 'text-xs text-[var(--text-secondary)] mb-2 leading-relaxed' },
-        '外部 AI 通过 Bearer Key 调用 /api/agent/* 管理书籍。先复制下方「系统提示词」发给你的 AI（接口地址已自动填入），再复制接口 Base URL，最后把生成的 Agent Key 粘进提示词的鉴权位置即可：'),
-      copyablePrompt('系统提示词（接入说明，可直接复制）', promptSetupBody()),
+      h('div', { class: 'text-sm text-[var(--text-secondary)] leading-relaxed mb-2' },
+        '外部 AI 通过 Bearer Key 调用 /api/agent/* 管理你的书架。按下面三步配置即可：'),
+
+      h('div', { class: 'text-xs font-medium text-[var(--text-muted)] mb-1.5' }, 'Step 1 · 复制系统提示词，发给 AI'),
+      copyablePrompt('系统提示词（接入说明）', promptSetupBody()),
+
+      h('div', { class: 'text-xs font-medium text-[var(--text-muted)] mb-1.5 mt-5' }, 'Step 2 · 复制接口地址'),
       copyableValue('接口 Base URL', `${window.location.origin}/api/agent`),
-      h('div', { class: 'text-xs text-[var(--text-secondary)] mb-3 leading-relaxed mt-3' },
-        '供外部 AI Agent 以 HTTP 调用查询/新增/编辑/删除书籍。删除仅软删至回收站，禁止 AI 操作回收站。写操作限频 10 次/10 分钟，删除限频 10 次/1 小时。'),
+
+      h('div', { class: 'text-xs font-medium text-[var(--text-muted)] mb-1.5 mt-5' }, 'Step 3 · 生成并复制 Agent Key'),
       items,
       h('div', { class: 'flex gap-2 mt-3' }, label, addBtn),
+
+      h('div', { class: 'text-xs text-[var(--text-muted)] leading-relaxed mt-6 border-t border-[var(--border-subtle)] pt-3' },
+        '能力与限制：删除仅软删至回收站，禁止 AI 操作回收站；写操作限频 10 次/10 分钟，删除限频 10 次/1 小时。'),
     );
   };
 
@@ -250,11 +257,11 @@ async function renderAgentKeysSection(container: HTMLElement) {
 
 export function openAgentSettings() {
   const wrap = h('div', {});
-  const content = h('div', { class: 'space-y-4' },
+  const content = h('div', { class: 'space-y-5' },
     h('h3', { class: 'text-sm font-medium text-[var(--text-primary)]' }, 'AI Agent Keys'),
     wrap,
   );
-  modal('AI Agent 接入', content);
+  modal('AI Agent 接入', content, undefined, 'max-w-3xl');
   void renderAgentKeysSection(wrap);
 }
 
