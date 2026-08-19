@@ -1,10 +1,10 @@
 # API 接口手册
 
-- **文档版本**：v1.1
+- **文档版本**：v1.2
 - **文档状态**：草案
 - **目的和适用范围**：书单管理工具（Bookshelf）全部 HTTP 接口的路径、鉴权、请求参数、响应结构与错误约定。适用于前端联调、后端实现与测试评审。
 - **权威级别**：模块规则
-- **最后更新日期**：2026-08-17
+- **最后更新日期**：2026-08-19
 
 ## 修改记录
 
@@ -12,6 +12,7 @@
 |-----------|-----------|------|---------|-----------|
 | v1.0 | - | 2026-08-17 | 初版。auth/books/categories/tags/metadata/query/export/import/health 全接口 | gstack-lead |
 | v1.1 | - | 2026-08-17 | 评审修订：软删+回收站接口(3.5-3.8)、列表 trash 参数与排序枚举、book 提交字段与 tags 按名 upsert、AI 过滤 JSON schema+写日志、导出不含回收站、分类/标签 count 仅计在库 | gstack-lead |
+| v1.2 | 0.1.0 | 2026-08-19 | 新增 6A 节：AI Agent（Bearer Key）端点约定与 `POST /api/agent/books/metadata/fetch` 抓取端点 | gstack-lead |
 
 ---
 
@@ -127,6 +128,19 @@
 - 请求：`{ "url"?: "https://book.douban.com/...", "isbn"?: "9787..." }`（二选一）
 - 成功 `200`：`{ "data": { "title","author","translator","publisher","publish_year","isbn","page_count","original_title","description","cover_url","douban_rating","source":"douban|neodb|openlibrary|googlebooks|manual" } }`
 - 说明：走兜底链（豆瓣→NeoDB→Open Library→Google Books→手动）；失败 `400` 并提示"获取链接失败，请改用粘贴文本导入"。
+
+## 6A. AI Agent（Bearer Key）
+
+### 6A.1 通用约定
+- **Base**：`/api/agent`；鉴权用请求头 `Authorization: Bearer <Agent Key>`（独立于登录 session）。
+- **写限频**：写操作 10 次/10 分钟；删除限频 10 次/1 小时；缺 Key/失效返回 `401`，超限返回 `429`。
+- 现有端点：`GET /books`（查询）、`GET /books/:id`、`GET /categories`、`GET /tags`、`POST /books`、`PATCH /books/:id`、`DELETE /books/:id`（仅软删）、`GET /export/books`。
+
+### 6A.2 POST /api/agent/books/metadata/fetch
+- 鉴权：Bearer Agent Key；写限频
+- 请求：`{ "url"?: "https://book.douban.com/...", "isbn"?: "9787..." }`（二选一）
+- 成功 `200`：`{ "data": { "title","author","translator","publisher","publish_year","isbn","page_count","original_title","description","cover_url","douban_rating","douban_url","source":"douban" } }`（`cover_url` 为站内 R2 代理路径或原豆瓣图）
+- 说明：供外部 AI 拿到豆瓣链接/ISBN 后抓取元数据回填，再以结果作为 `POST /api/agent/books` 的创建字段；不直接入库。失败 `400`。
 
 ## 7. AI 查询（query）
 
