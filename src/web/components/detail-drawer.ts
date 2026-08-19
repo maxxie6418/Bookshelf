@@ -55,7 +55,7 @@ export function renderDrawer(book: Book) {
   const modalEl = h('div', { class: 'fixed inset-0 z-50 hidden' });
   const backdrop = h('div', { class: 'modal-backdrop absolute inset-0 bg-[var(--overlay-bg)] transition-opacity duration-300 ease-[var(--ease-in-out)] opacity-0' });
   const drawer = h('aside', {
-    class: 'absolute top-0 right-0 h-full w-full sm:w-[480px] lg:w-[520px] bg-[var(--bg-surface)] shadow-2xl transform translate-x-full transition-transform duration-300 ease-[var(--ease-out-expo)] pointer-events-auto flex flex-col overflow-hidden',
+    class: 'absolute top-0 right-0 h-full w-full sm:w-[600px] lg:w-[680px] bg-[var(--bg-surface)] shadow-2xl transform translate-x-full transition-transform duration-300 ease-[var(--ease-out-expo)] pointer-events-auto flex flex-col overflow-hidden',
   });
   // 内容容器（可滚动主体）与底部固定操作栏
   const content = h('div', { class: 'flex-1 overflow-y-auto min-h-0' });
