@@ -52,8 +52,14 @@ export const api = {
   changePassword: (new_password: string) => request<{ success: boolean }>('/auth/password', { method: 'POST', body: JSON.stringify({ new_password }) }),
 
   // books
-  listBooks: (f: Filters & { trash?: boolean; limit?: number; offset?: number }) =>
-    request<BookListResult>(`/books${qs(f)}`),
+  listBooks: (f: Filters & { trash?: boolean; limit?: number; offset?: number }) => {
+    const params: Record<string, unknown> = { ...f };
+    if ('categoryId' in params) {
+      params.category_id = params.categoryId;
+      delete params.categoryId;
+    }
+    return request<BookListResult>(`/books${qs(params)}`);
+  },
   getBook: (id: number) => request<Book>(`/books/${id}`),
   createBook: (data: Partial<Book> & { title: string }) => request<Book>('/books', { method: 'POST', body: JSON.stringify(data) }),
   updateBook: (id: number, data: Partial<Book>) => request<Book>(`/books/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
