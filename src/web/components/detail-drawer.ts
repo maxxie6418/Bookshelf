@@ -55,11 +55,12 @@ export function renderDrawer(book: Book) {
   const modalEl = h('div', { class: 'fixed inset-0 z-50 hidden' });
   const backdrop = h('div', { class: 'modal-backdrop absolute inset-0 bg-[var(--overlay-bg)] transition-opacity duration-300 ease-[var(--ease-in-out)] opacity-0' });
   const drawer = h('aside', {
-    class: 'absolute top-0 right-0 h-full w-full sm:w-[480px] lg:w-[520px] bg-[var(--bg-surface)] shadow-2xl transform translate-x-full transition-transform duration-300 ease-[var(--ease-out-expo)] pointer-events-auto overflow-y-auto',
+    class: 'absolute top-0 right-0 h-full w-full sm:w-[480px] lg:w-[520px] bg-[var(--bg-surface)] shadow-2xl transform translate-x-full transition-transform duration-300 ease-[var(--ease-out-expo)] pointer-events-auto flex flex-col overflow-hidden',
   });
-  // 内容容器：展示态 / 编辑态整体换内容
-  const content = h('div', { class: 'min-h-full' });
-  drawer.append(content);
+  // 内容容器（可滚动主体）与底部固定操作栏
+  const content = h('div', { class: 'flex-1 overflow-y-auto min-h-0' });
+  const footer = h('div', { class: 'shrink-0 bg-[var(--bg-surface)]' });
+  drawer.append(content, footer);
 
   // 顶部封面头（展示态使用）
   function coverHeader(current: Book) {
@@ -120,34 +121,40 @@ export function renderDrawer(book: Book) {
         h('div', { class: 'text-xs text-[var(--text-muted)] mb-2' }, '录入理由'),
         h('p', { class: 'text-sm leading-relaxed text-[var(--text-secondary)] whitespace-pre-wrap' }, current.reason),
       ) : null,
-      h('div', { class: 'pt-4 border-t border-[var(--border-subtle)] flex items-center justify-between gap-3' },
-        h('button', {
-          class: 'px-3 py-2 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 text-sm transition-colors',
-          title: '移入回收站',
-          onclick: async () => {
-            const ok = await confirmDialog(`把《${current.title}》移入回收站？可随时恢复。`);
-            if (!ok) return;
-            try {
-              await api.softDelete(current.id);
-              close();
-              toast('已移入回收站');
-              await refresh();
-              await refreshSidebar();
-            } catch (e) {
-              toast((e as Error).message, 'error');
-            }
-          },
-        }, '移入回收站'),
-        h('div', { class: 'flex gap-3' },
-          h('button', { class: 'flex-1 px-4 py-2.5 border border-[var(--border-default)] rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] transition-colors', onclick: close }, '关闭'),
-          h('button', { class: 'flex-1 px-4 py-2.5 bg-[var(--accent)] text-[var(--accent-text)] rounded-lg text-sm font-medium hover:bg-[var(--accent-hover)] transition-colors', onclick: () => enterEdit(current) }, '编辑'),
-        ),
-      ),
     );
+  }
+
+  // 底部固定操作栏：展示态（移入回收站贴左下 + 关闭/编辑）
+  function renderDisplayFooter(current: Book) {
+    footer.innerHTML = '';
+    footer.append(h('div', { class: 'p-4 pt-3 border-t border-[var(--border-subtle)] flex items-center justify-between gap-3' },
+      h('button', {
+        class: 'px-3 py-2 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 text-sm transition-colors',
+        title: '移入回收站',
+        onclick: async () => {
+          const ok = await confirmDialog(`把《${current.title}》移入回收站？可随时恢复。`);
+          if (!ok) return;
+          try {
+            await api.softDelete(current.id);
+            close();
+            toast('已移入回收站');
+            await refresh();
+            await refreshSidebar();
+          } catch (e) {
+            toast((e as Error).message, 'error');
+          }
+        },
+      }, '移入回收站'),
+      h('div', { class: 'flex gap-3' },
+        h('button', { class: 'flex-1 px-4 py-2.5 border border-[var(--border-default)] rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] transition-colors', onclick: close }, '关闭'),
+        h('button', { class: 'flex-1 px-4 py-2.5 bg-[var(--accent)] text-[var(--accent-text)] rounded-lg text-sm font-medium hover:bg-[var(--accent-hover)] transition-colors', onclick: () => enterEdit(current) }, '编辑'),
+      ),
+    ));
   }
 
   function renderDisplay(current: Book) {
     content.innerHTML = '';
+    renderDisplayFooter(current);
     content.append(coverHeader(current), displayBody(current));
   }
 
@@ -177,28 +184,31 @@ export function renderDrawer(book: Book) {
       editField('简介', els.description),
       editField('笔记', els.notes),
       editField('录入理由', els.reason),
-      h('div', { class: 'flex gap-3 pt-3 pb-4' },
-        h('button', { class: 'flex-1 px-4 py-2.5 border border-[var(--border-default)] rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] transition-colors', onclick: () => renderDisplay(current) }, '取消'),
-        h('button', {
-          class: 'flex-1 px-4 py-2.5 bg-[var(--accent)] text-[var(--accent-text)] rounded-lg text-sm font-medium hover:bg-[var(--accent-hover)] transition-colors',
-          onclick: async () => {
-            const err = f.validate();
-            if (err) { toast(err, 'error'); return; }
-            const payload = f.collectPayload();
-            try {
-              await api.updateBook(current.id, payload);
-              const updated = await api.getBook(current.id);
-              toast('已更新');
-              await refresh();
-              await refreshSidebar();
-              renderDisplay(updated);
-            } catch (e) {
-              toast((e as Error).message, 'error');
-            }
-          },
-        }, '保存'),
-      ),
     );
+
+    // 编辑态底部操作栏：取消 / 保存
+    footer.innerHTML = '';
+    footer.append(h('div', { class: 'p-4 pt-3 border-t border-[var(--border-subtle)] flex gap-3' },
+      h('button', { class: 'flex-1 px-4 py-2.5 border border-[var(--border-default)] rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] transition-colors', onclick: () => renderDisplay(current) }, '取消'),
+      h('button', {
+        class: 'flex-1 px-4 py-2.5 bg-[var(--accent)] text-[var(--accent-text)] rounded-lg text-sm font-medium hover:bg-[var(--accent-hover)] transition-colors',
+        onclick: async () => {
+          const err = f.validate();
+          if (err) { toast(err, 'error'); return; }
+          const payload = f.collectPayload();
+          try {
+            await api.updateBook(current.id, payload);
+            const updated = await api.getBook(current.id);
+            toast('已更新');
+            await refresh();
+            await refreshSidebar();
+            renderDisplay(updated);
+          } catch (e) {
+            toast((e as Error).message, 'error');
+          }
+        },
+      }, '保存'),
+    ));
 
     content.innerHTML = '';
     content.append(editBody);

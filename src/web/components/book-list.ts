@@ -263,13 +263,13 @@ function renderTable(): HTMLElement {
   const table = h('table', { class: 'w-full text-sm' });
   const thead = h('thead');
   thead.append(h('tr', { class: 'border-b border-[var(--border-default)] text-left text-xs text-[var(--text-muted)] uppercase tracking-wider' },
-    h('th', { class: 'px-4 py-3 font-medium' }, '封面'),
-    h('th', { class: 'px-4 py-3 font-medium' }, '书名'),
-    h('th', { class: 'px-4 py-3 font-medium' }, '作者'),
-    h('th', { class: 'px-4 py-3 font-medium' }, '状态'),
-    h('th', { class: 'px-4 py-3 font-medium' }, '分类'),
-    h('th', { class: 'px-4 py-3 font-medium' }, '评分'),
-    h('th', { class: 'px-4 py-3 font-medium text-right' }, '操作'),
+    h('th', { class: 'px-4 py-2 font-medium' }, '封面'),
+    h('th', { class: 'px-4 py-2 font-medium' }, '书名'),
+    h('th', { class: 'px-4 py-2 font-medium' }, '作者'),
+    h('th', { class: 'px-4 py-2 font-medium' }, '状态'),
+    h('th', { class: 'px-4 py-2 font-medium' }, '分类'),
+    h('th', { class: 'px-4 py-2 font-medium' }, '评分'),
+    h('th', { class: 'px-4 py-2 font-medium text-right' }, '操作'),
   ));
   const tbody = h('tbody');
   const books = state.books;
@@ -278,23 +278,23 @@ function renderTable(): HTMLElement {
     const meta = STATUS_META[b.status] ?? STATUS_META.unread;
     const isLast = i === books.length - 1;
     const row = h('tr', { class: 'table-row cursor-pointer', onclick: () => renderDrawer(b) });
-    const coverCell = h('td', { class: 'px-4 py-4' },
+    const coverCell = h('td', { class: 'px-4 py-2' },
       h('div', { class: 'w-10 h-14 rounded-md overflow-hidden shadow-sm' }, coverEl(b, 'table')),
     );
     row.append(
       coverCell,
-      h('td', { class: 'px-4 py-4' },
+      h('td', { class: 'px-4 py-2' },
         h('div', { class: 'font-medium text-sm font-display text-[var(--text-primary)]' }, b.title),
         b.original_title ? h('div', { class: 'text-xs text-[var(--text-muted)] mt-0.5' }, b.original_title) : null,
       ),
-      h('td', { class: 'px-4 py-4 text-sm text-[var(--text-secondary)]' }, b.author ?? ''),
-      h('td', { class: 'px-4 py-4' },
+      h('td', { class: 'px-4 py-2 text-sm text-[var(--text-secondary)]' }, b.author ?? ''),
+      h('td', { class: 'px-4 py-2' },
         h('span', { class: `inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${meta.bg} ${meta.text}` },
           h('span', { class: `w-1.5 h-1.5 rounded-full ${meta.dot}` }),
           STATUS_LABEL[b.status] ?? b.status,
         ),
       ),
-      h('td', { class: 'px-4 py-4' },
+      h('td', { class: 'px-4 py-2' },
         b.category_name
           ? h('span', { class: 'inline-flex items-center gap-1.5 text-xs text-[var(--text-secondary)]' },
               h('span', { class: 'w-2 h-2 rounded-sm', style: `background:${b.category_color ?? '#8a8274'}` }),
@@ -302,8 +302,8 @@ function renderTable(): HTMLElement {
             )
           : '',
       ),
-      h('td', { class: 'px-4 py-4' }, renderStars(b.rating)),
-      h('td', { class: 'px-4 py-4 text-right' },
+      h('td', { class: 'px-4 py-2' }, renderStars(b.rating)),
+      h('td', { class: 'px-4 py-2 text-right' },
         h('button', {
           class: 'p-1.5 rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors text-[var(--text-muted)] hover:text-[var(--text-secondary)]',
           onclick: (e: Event) => { e.stopPropagation(); openBookForm(b); },
@@ -325,7 +325,7 @@ function renderGrid(): HTMLElement {
   const grid = h('div', { class: 'view-grid grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-3 sm:gap-4 lg:gap-5' });
   for (const b of state.books) {
     const card = h('div', {
-      class: "book-card group cursor-pointer relative bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-xl shadow-paper hover:shadow-float hover:-translate-y-0.5 transition-all duration-300 after:content-[''] after:absolute after:left-[12.5%] after:right-[12.5%] after:-bottom-2 after:h-px after:bg-gradient-to-r after:from-transparent after:via-[var(--border-default)] after:to-transparent",
+      class: "book-card group cursor-pointer relative bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-xl shadow-paper hover:shadow-float hover:-translate-y-0.5 transition-all duration-300",
       onclick: () => renderDrawer(b),
     });
     card.append(

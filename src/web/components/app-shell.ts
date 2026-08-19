@@ -161,12 +161,12 @@ function renderSidebar(): HTMLElement {
 
   const extLink = (href: string, title: string, icon: (s?: number) => HTMLElement) =>
     h('a', {
-      class: 'p-2 rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors text-[var(--text-secondary)] hover:text-[var(--accent)]',
+      class: 'flex items-center justify-center w-8 h-8 rounded-md hover:bg-[var(--bg-surface-hover)] transition-colors text-[var(--text-secondary)] hover:text-[var(--accent)]',
       href,
       target: '_blank',
       rel: 'noopener noreferrer',
       title,
-    }, icon(18));
+    }, icon(15));
 
   const total = state.allBooks?.length ?? state.total ?? 0;
 
@@ -182,48 +182,52 @@ function renderSidebar(): HTMLElement {
         h('div', { class: 'text-xs text-[var(--text-muted)] mt-0.5' }, '在读'),
       ),
     ),
-    // 分类区：上半部，独立滚动
-    h('div', { class: 'flex-1 min-h-0 overflow-y-auto' },
+    // 分类区：占上半部（50% 高），独立滚动，保证标签区从侧栏中部开始
+    h('div', { class: 'shrink-0 h-[50%] min-h-0 overflow-y-auto' },
       section('分类', [taxBody('category')], taxBtn('category')),
     ),
     // 分隔线：区分分类区与标签区
     h('div', { class: 'mx-3 border-t border-[var(--border-subtle)] my-2 shrink-0' }),
-    // 标签区：固定在侧栏中部，独立滚动，不随上方分类区滚动
-    h('div', { class: 'shrink-0 max-h-[40%] min-h-0 overflow-y-auto' },
+    // 标签区：从中部延伸至底部快捷图标前，独立滚动，不随上方分类区滚动
+    h('div', { class: 'flex-1 min-h-0 overflow-y-auto' },
       section('标签', [taxBody('tag')], taxBtn('tag')),
     ),
-    // 底部：外部快捷链接 + 操作按钮（贴底）
-    h('div', { class: 'mt-auto pt-3 shrink-0' },
-      h('div', { class: 'flex items-center justify-around pt-2 pb-3 border-t border-[var(--border-subtle)]' },
-        extLink('https://github.com/maxxie6418/Bookshelf', '项目 GitHub', iconGithub),
-        extLink('https://dash.cloudflare.com', 'Cloudflare', iconCloudflare),
-        extLink('https://book.douban.com/', '豆瓣读书', iconDouban),
+    // 底部：书签链接（盒式卡片）+ 设置/退出（平铺，贴底）
+    h('div', { class: 'pt-3 shrink-0' },
+      // 书签：盒式卡片样式（与设置按钮组样式互换了位置）
+      h('div', { class: 'pt-2 pb-3 border-t border-[var(--border-subtle)]' },
+        h('div', { class: 'flex items-center justify-center gap-1 p-1 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-default)] shadow-paper w-fit mx-auto' },
+          extLink('https://github.com/maxxie6418/Bookshelf', '项目 GitHub', iconGithub),
+          extLink('https://dash.cloudflare.com', 'Cloudflare', iconCloudflare),
+          extLink('https://book.douban.com/', '豆瓣读书', iconDouban),
+        ),
       ),
+      // 设置/退出：平铺样式（与书签链接样式互换了位置）
       h('div', { class: 'pt-3 border-t border-[var(--border-subtle)]' },
-        h('div', { class: 'flex items-center gap-1.5 p-1.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-default)] shadow-paper' },
+        h('div', { class: 'flex items-center justify-around' },
           h('button', {
-            class: 'flex-1 flex items-center justify-center aspect-square rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors text-[var(--text-secondary)] hover:text-[var(--accent)]',
+            class: 'p-2 rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors text-[var(--text-secondary)] hover:text-[var(--accent)]',
             title: '切换主题',
             onclick: toggleTheme,
-          }, state.theme === 'dark' ? iconSun(16) : iconMoon(16)),
+          }, state.theme === 'dark' ? iconSun(18) : iconMoon(18)),
           h('button', {
-            class: 'flex-1 flex items-center justify-center aspect-square rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors text-[var(--text-secondary)] hover:text-[var(--accent)]',
+            class: 'p-2 rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors text-[var(--text-secondary)] hover:text-[var(--accent)]',
             title: 'Agent 设置',
             onclick: openAgentSettings,
-          }, iconKey(16)),
+          }, iconKey(18)),
           h('button', {
-            class: 'flex-1 flex items-center justify-center aspect-square rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors text-[var(--text-secondary)] hover:text-[var(--accent)]',
+            class: 'p-2 rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors text-[var(--text-secondary)] hover:text-[var(--accent)]',
             title: '设置',
             onclick: openSettings,
-          }, iconSettings(16)),
+          }, iconSettings(18)),
           h('button', {
-            class: 'flex-1 flex items-center justify-center aspect-square rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors text-[var(--text-secondary)] hover:text-red-500',
+            class: 'p-2 rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors text-[var(--text-secondary)] hover:text-red-500',
             title: '退出',
             onclick: async () => {
               await api.logout().catch(() => undefined);
               window.location.reload();
             },
-          }, iconLogout(16)),
+          }, iconLogout(18)),
         ),
       ),
     ),
