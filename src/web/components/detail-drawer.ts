@@ -1,7 +1,7 @@
 // 详情抽屉
 import { api } from '../api';
 import type { Book } from '../types';
-import { h, toast, confirmDialog, renderCoverPlaceholder, renderStars, iconClose } from '../ui';
+import { h, toast, confirmDialog, renderCoverPlaceholder, renderStars, iconClose, iconEdit } from '../ui';
 import { createBookEditForm, labelCls } from './book-edit-form';
 import { refresh, refreshSidebar } from '../refresh';
 
@@ -51,6 +51,81 @@ function editGrid2(a: HTMLElement, b: HTMLElement): HTMLElement {
   return h('div', { class: 'grid grid-cols-2 gap-3' }, a, b);
 }
 
+// 笔记 / 录入理由：内联编辑块（不进全表单编辑，头部小按钮进入编辑、直接保存）
+function editableMemoBlock(
+  book: Book,
+  memoKey: 'notes' | 'reason',
+  label: string,
+  maxLen: number,
+): HTMLElement {
+  const wrap = h('div', { class: 'rounded-xl border border-[var(--border-default)] overflow-hidden bg-[var(--bg-surface)]' });
+  const viewEl = h('div', {});
+  const editEl = h('div', { class: 'hidden' });
+  wrap.append(viewEl, editEl);
+
+  const renderView = () => {
+    const val = book[memoKey] || '';
+    viewEl.replaceChildren(
+      h('div', { class: 'flex items-center justify-between px-3 py-2 border-b border-[var(--border-subtle)]' },
+        h('div', { class: 'text-xs font-medium text-[var(--text-muted)]' }, label),
+        h('button', {
+          class: 'inline-flex items-center gap-1 text-xs text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors',
+          onclick: () => { viewEl.classList.add('hidden'); editEl.classList.remove('hidden'); renderEdit(); },
+        }, iconEdit(14), '编辑'),
+      ),
+      h('div', { class: 'px-3 py-2.5' },
+        val
+          ? h('p', { class: 'text-sm leading-relaxed text-[var(--text-secondary)] whitespace-pre-wrap' }, val)
+          : h('p', { class: 'text-sm text-[var(--text-muted)]' }, '暂无内容，点击右上角「编辑」填写'),
+      ),
+    );
+  };
+
+  function renderEdit() {
+    const ta = h('textarea', { class: 'w-full min-h-24 px-3.5 py-2.5 rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 resize-y', rows: 5 });
+    ta.value = book[memoKey] || '';
+    const charCount = h('span', { class: 'text-xs text-[var(--text-muted)]' }, `${ta.value.length}/${maxLen}`);
+    ta.addEventListener('input', () => { charCount.textContent = `${ta.value.length}/${maxLen}`; });
+    editEl.replaceChildren(
+      h('div', { class: 'px-3 py-2' },
+        h('div', { class: 'flex items-center justify-between mb-1.5' },
+          h('div', { class: 'text-xs font-medium text-[var(--text-muted)]' }, label),
+          charCount,
+        ),
+        ta,
+        h('div', { class: 'flex gap-2 mt-2' },
+          h('button', {
+            class: 'px-3 py-1.5 rounded-lg text-xs font-medium text-[var(--text-secondary)] border border-[var(--border-default)] hover:bg-[var(--bg-surface-hover)] transition-colors',
+            onclick: () => { editEl.classList.add('hidden'); renderView(); },
+          }, '取消'),
+          h('button', {
+            class: 'px-3 py-1.5 rounded-lg text-xs font-medium bg-[var(--accent)] text-[var(--accent-text)] hover:bg-[var(--accent-hover)] transition-colors',
+            onclick: async () => {
+              const value = ta.value.trim();
+              if (value.length > maxLen) { toast(`最多 ${maxLen} 字`, 'error'); return; }
+              try {
+                await api.updateBook(book.id, { [memoKey]: value || null });
+                const updated = await api.getBook(book.id);
+                toast('已保存');
+                book = updated;
+                await refresh();
+                await refreshSidebar();
+                editEl.classList.add('hidden');
+                renderView();
+              } catch (e) {
+                toast((e as Error).message, 'error');
+              }
+            },
+          }, '保存'),
+        ),
+      ),
+    );
+  }
+
+  renderView();
+  return wrap;
+}
+
 export function renderDrawer(book: Book) {
   const modalEl = h('div', { class: 'fixed inset-0 z-50 hidden' });
   const backdrop = h('div', { class: 'modal-backdrop absolute inset-0 bg-[var(--overlay-bg)] transition-opacity duration-300 ease-[var(--ease-in-out)] opacity-0' });
@@ -94,14 +169,18 @@ export function renderDrawer(book: Book) {
         ),
         current.rating ? renderStars(current.rating, 'w-4 h-4') : null,
       ),
-      h('div', { class: 'grid grid-cols-2 gap-4 text-sm' },
-        field('作者', current.author),
-        field('译者', current.translator),
-        field('出版社', current.publisher),
-        field('出版年', current.publish_year != null ? String(current.publish_year) : null),
-        field('ISBN', current.isbn),
-        field('页数', current.page_count != null ? `${current.page_count} 页` : null),
-        fieldLink('豆瓣链接', current.douban_url),
+      // 书籍本身的属性：统一容器框起来
+      h('div', { class: 'rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4' },
+        h('div', { class: 'text-xs font-medium text-[var(--text-muted)] mb-2.5' }, '书籍属性'),
+        h('div', { class: 'grid grid-cols-2 gap-x-4 gap-y-3 text-sm' },
+          field('作者', current.author),
+          field('译者', current.translator),
+          field('出版社', current.publisher),
+          field('出版年', current.publish_year != null ? String(current.publish_year) : null),
+          field('ISBN', current.isbn),
+          field('页数', current.page_count != null ? `${current.page_count} 页` : null),
+          fieldLink('豆瓣链接', current.douban_url),
+        ),
       ),
       current.description ? h('div', {},
         h('div', { class: 'text-xs text-[var(--text-muted)] mb-2' }, '简介'),
@@ -113,14 +192,14 @@ export function renderDrawer(book: Book) {
           ...current.tags.map((t) => h('span', { class: 'px-2.5 py-1 rounded-full text-xs bg-[var(--bg-surface-hover)] text-[var(--text-secondary)] border border-[var(--border-subtle)]' }, `#${t}`)),
         ),
       ) : null,
-      current.notes ? h('div', {},
-        h('div', { class: 'text-xs text-[var(--text-muted)] mb-2' }, '笔记'),
-        h('p', { class: 'text-sm leading-relaxed text-[var(--text-secondary)] whitespace-pre-wrap' }, current.notes),
-      ) : null,
-      current.reason ? h('div', {},
-        h('div', { class: 'text-xs text-[var(--text-muted)] mb-2' }, '录入理由'),
-        h('p', { class: 'text-sm leading-relaxed text-[var(--text-secondary)] whitespace-pre-wrap' }, current.reason),
-      ) : null,
+      // 自行填写的内容与上方属性块之间加分割线
+      h('div', { class: 'flex items-center gap-3 pt-1' },
+        h('div', { class: 'flex-1 border-t border-[var(--border-subtle)]' }),
+        h('span', { class: 'text-xs text-[var(--text-muted)]' }, '我的记录'),
+        h('div', { class: 'flex-1 border-t border-[var(--border-subtle)]' }),
+      ),
+      editableMemoBlock(current, 'notes', '笔记', 2000),
+      editableMemoBlock(current, 'reason', '录入理由', 1000),
     );
   }
 
