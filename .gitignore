@@ -12,3 +12,6 @@ seed.out
 dev.out
 dev2.out
 .tmp-seed.sql
+# 测试素材（样本数据 / 实验文件 / 临时验证数据）
+META/DATALAB/
+jar.txt
