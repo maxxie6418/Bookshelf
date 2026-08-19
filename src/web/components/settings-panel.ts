@@ -27,10 +27,13 @@ Authorization: Bearer <你的 Agent Key>
 - GET  ${baseUrl}/books/:id      查看单本详情
 - GET  ${baseUrl}/categories     分类列表（只读）
 - GET  ${baseUrl}/tags           标签列表（只读）
+- POST ${baseUrl}/books/metadata/fetch   按豆瓣链接或 ISBN 抓取书籍元数据（回填用）
 - POST ${baseUrl}/books          新增书籍
 - PATCH ${baseUrl}/books/:id     编辑书籍
 - DELETE ${baseUrl}/books/:id    删除书籍（移入回收站）
-- GET  ${baseUrl}/export/books   导出全部藏书为 CSV`;
+- GET  ${baseUrl}/export/books   导出全部藏书为 CSV
+
+新增书籍时，若我提供豆瓣链接或 ISBN，请先调用 metadata/fetch 抓取元数据，再把抓取结果作为 /books 创建请求的字段提交；抓取返回的 cover_url 与 douban_url 也可一并带上。`;
 }
 
 interface AgentKey {

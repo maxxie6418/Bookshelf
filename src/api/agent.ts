@@ -12,6 +12,12 @@ import * as categories from '../lib/categories';
 import * as tags from '../lib/tags';
 import { toCsv } from '../lib/csv';
 import { exportBookToRow } from './export';
+import {
+  fetchDoubanMetadataByUrl,
+  fetchDoubanMetadataByIsbn,
+  normalizeDoubanUrl,
+} from '../lib/book-metadata';
+import { storeCover } from '../lib/covers';
 
 export const agentRoutes = new Hono<{ Bindings: Env; Variables: { agentHash: string } }>();
 agentRoutes.use(requireAgentKey);
@@ -37,6 +43,11 @@ const bookSchema = z.object({
 });
 const bookCreateSchema = bookSchema;
 const bookUpdateSchema = bookSchema.partial();
+
+const fetchSchema = z.object({
+  url: z.string().optional(),
+  isbn: z.string().optional(),
+});
 
 const VALID_STATUS = ['unread', 'reading', 'finished'];
 const VALID_SORTS = ['updated_desc', 'updated_asc', 'title_asc', 'title_desc', 'rating_desc'];
@@ -103,6 +114,42 @@ agentRoutes.post('/books', async (c) => {
   if (!parsed.success) return err(c, 'VALIDATION_ERROR', parsed.error.issues[0]?.message ?? '参数错误');
   const book = await books.createBook(c.env.DB, parsed.data);
   return c.json({ data: book }, 201);
+});
+
+// POST /api/agent/books/metadata/fetch（豆瓣链接 / ISBN 抓取回填，写限频；返回元数据，不直接入库）
+agentRoutes.post('/books/metadata/fetch', async (c) => {
+  const wl = await checkWriteLimit(c.env.KV, c.get('agentHash'));
+  if (!wl.allowed) return rateLimited(c, wl.retryAfter);
+
+  const body = await c.req.json().catch(() => null);
+  const parsed = fetchSchema.safeParse(body);
+  if (!parsed.success) return err(c, 'VALIDATION_ERROR', parsed.error.issues[0]?.message ?? '参数错误');
+  const { url, isbn } = parsed.data;
+  if (!url && !isbn) return err(c, 'VALIDATION_ERROR', '请提供 url 或 isbn');
+
+  try {
+    const meta = isbn
+      ? await fetchDoubanMetadataByIsbn(isbn, c.env.KV)
+      : await fetchDoubanMetadataByUrl(url!, c.env.KV);
+
+    // 封面下载到 R2，返回站内代理路径；失败保留原图或置空（前端走纯色兜底）
+    let cover_url = meta.cover_url;
+    if (cover_url) {
+      const stored = await storeCover(c.env.COVERS, cover_url, { isbn: meta.isbn });
+      cover_url = stored ?? cover_url;
+    }
+
+    return c.json({
+      data: {
+        ...meta,
+        cover_url,
+        douban_url: url ? (normalizeDoubanUrl(url) ?? url) : null,
+        douban_rating: meta.douban_rating,
+      },
+    });
+  } catch (e) {
+    return err(c, 'FETCH_FAILED', (e as Error).message || '获取失败');
+  }
 });
 
 // PATCH /api/agent/books/:id（编辑，写限频）
