@@ -7,6 +7,45 @@ import { refresh } from '../refresh';
 
 const inputCls = 'w-full px-3.5 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 placeholder:text-[var(--text-muted)] transition-colors';
 
+// 预置①：发给外部 AI 的系统提示词（接入说明）
+const PROMPT_SETUP = `你是一个帮我管理个人书架（Bookshelf）的助手，可通过 HTTP 调用我的书架 API 来查询和管理藏书。
+
+接口 Base URL（将「你的部署地址」替换为你的实际域名，其余路径固定）：
+- 你的部署地址/api/agent
+
+鉴权（Bearer Key，每个请求都必须带）：
+Authorization: Bearer <你的 Agent Key>
+
+可用端点：
+- GET  /books          查询书籍，可选参数：status=unread|reading|finished、q 关键词、tag、category_id、sort、limit、offset
+- GET  /books/:id      查看单本详情
+- GET  /categories     分类列表（只读）
+- GET  /tags           标签列表（只读）
+- POST /books          新增书籍
+- PATCH /books/:id     编辑书籍
+- DELETE /books/:id    删除书籍（移入回收站）
+- GET  /export/books   导出全部藏书为 CSV
+
+请礼貌、简洁地完成任务；当用户需要查询、整理或管理书单时，直接调用上述接口。`;
+
+// 预置②：连接后具备的能力说明
+const PROMPT_CAPS = `连接后，本 AI 助手具备以下能力：
+
+一、查询
+- 按状态（未读 / 在读 / 读完）、关键词、分类、标签、评分等筛选书籍
+- 查看任意单本书籍详情
+- 将全部藏书导出为 CSV
+
+二、管理
+- 新增书籍：书名、作者、译者、出版社、出版年、页数、ISBN、简介、记录/笔记（≤2000 字）、录入理由（≤1000 字）、封面、豆瓣链接、评分、状态、分类、标签等
+- 编辑书籍：可修改任意字段
+- 删除书籍：移入回收站（软删除）
+
+三、限制与约束
+- 写操作限频 10 次 / 10 分钟；删除操作加严为 10 次 / 1 小时
+- 分类与标签为只读（AI 不能新建、改名或删除）
+- 禁止一切回收站操作（不能恢复、彻底删除或清空回收站）`;
+
 interface AgentKey {
   hash: string;
   label: string;
@@ -68,6 +107,31 @@ function showKeyPlaintext(plain: string, label: string) {
     box.classList.remove('opacity-0', 'scale-95');
     box.classList.add('opacity-100', 'scale-100');
   });
+}
+
+// 预置提示词 / 能力说明块：可一键复制后发给外部 AI
+function copyablePrompt(title: string, body: string): HTMLElement {
+  const copyBtn = h('button', {
+    class: 'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[var(--border-default)] text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--accent)] transition-colors shrink-0',
+    title: '复制全部内容',
+    onclick: async () => {
+      try {
+        await navigator.clipboard.writeText(body);
+        copyBtn.textContent = '已复制 ✓';
+        toast('已复制，可粘贴发给 AI');
+        setTimeout(() => { copyBtn.textContent = '复制'; }, 1500);
+      } catch {
+        toast('复制失败，请手动选择复制', 'error');
+      }
+    },
+  }, '复制');
+  return h('div', { class: 'rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] overflow-hidden' },
+    h('div', { class: 'flex items-center justify-between gap-2 px-3 py-2 border-b border-[var(--border-subtle)]' },
+      h('div', { class: 'text-xs font-medium text-[var(--text-primary)]' }, title),
+      copyBtn,
+    ),
+    h('pre', { class: 'px-3 py-2.5 text-xs leading-relaxed text-[var(--text-secondary)] whitespace-pre-wrap font-sans max-h-48 overflow-y-auto' }, body),
+  );
 }
 
 async function renderAgentKeysSection(container: HTMLElement) {
@@ -158,7 +222,11 @@ async function renderAgentKeysSection(container: HTMLElement) {
     }, '生成新 Key');
 
     container.append(
-      h('div', { class: 'text-xs text-[var(--text-secondary)] mb-3 leading-relaxed' },
+      h('div', { class: 'text-xs text-[var(--text-secondary)] mb-2 leading-relaxed' },
+        '外部 AI 通过 Bearer Key 调用 /api/agent/* 管理书籍。下方两段预置内容可一键复制后发给你的 AI：'),
+      copyablePrompt('① 系统提示词（接入说明）', PROMPT_SETUP),
+      copyablePrompt('② 连接后具备的能力', PROMPT_CAPS),
+      h('div', { class: 'text-xs text-[var(--text-secondary)] mb-3 leading-relaxed mt-3' },
         '供外部 AI Agent 以 HTTP 调用查询/新增/编辑/删除书籍。删除仅软删至回收站，禁止 AI 操作回收站。写操作限频 10 次/10 分钟，删除限频 10 次/1 小时。'),
       items,
       h('div', { class: 'flex gap-2 mt-3' }, label, addBtn),
