@@ -5,7 +5,7 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['LXGW WenKai', 'Noto Serif SC', 'serif'],
+        sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC', 'sans-serif'],
         serif: ['Noto Serif SC', 'Georgia', 'serif'],
         mono: ['JetBrains Mono', 'monospace'],
       },
