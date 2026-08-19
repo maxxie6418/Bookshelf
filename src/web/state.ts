@@ -12,6 +12,7 @@ export const state = {
   books: [] as Book[],
   allBooks: [] as Book[], // 无筛选的全部书籍（用于侧边栏统计）
   total: 0,
+  page: 1, // 当前列表页码（1 起）
   loading: false,
   categories: [] as Category[],
   tags: [] as Tag[],

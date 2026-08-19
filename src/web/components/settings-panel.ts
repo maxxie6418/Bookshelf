@@ -235,9 +235,9 @@ async function renderAgentKeysSection(container: HTMLElement) {
 
     container.append(
       h('div', { class: 'text-xs text-[var(--text-secondary)] mb-2 leading-relaxed' },
-        '外部 AI 通过 Bearer Key 调用 /api/agent/* 管理书籍。复制下方 Base URL，再复制下方「系统提示词」发给你的 AI（接口地址已自动填入），最后把生成的 Agent Key 粘进提示词的鉴权位置即可：'),
-      copyableValue('接口 Base URL', `${window.location.origin}/api/agent`),
+        '外部 AI 通过 Bearer Key 调用 /api/agent/* 管理书籍。先复制下方「系统提示词」发给你的 AI（接口地址已自动填入），再复制接口 Base URL，最后把生成的 Agent Key 粘进提示词的鉴权位置即可：'),
       copyablePrompt('系统提示词（接入说明，可直接复制）', promptSetupBody()),
+      copyableValue('接口 Base URL', `${window.location.origin}/api/agent`),
       h('div', { class: 'text-xs text-[var(--text-secondary)] mb-3 leading-relaxed mt-3' },
         '供外部 AI Agent 以 HTTP 调用查询/新增/编辑/删除书籍。删除仅软删至回收站，禁止 AI 操作回收站。写操作限频 10 次/10 分钟，删除限频 10 次/1 小时。'),
       items,
