@@ -230,6 +230,7 @@ function renderSidebar(): HTMLElement {
           }, iconLogout(18)),
         ),
       ),
+      h('div', { class: 'pt-2 text-[11px] text-[var(--text-muted)]' }, 'v1.0.0'),
     ),
   );
 }
