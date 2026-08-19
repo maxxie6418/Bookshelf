@@ -1,7 +1,7 @@
 // 详情抽屉
 import { api } from '../api';
 import type { Book } from '../types';
-import { h, toast, confirmDialog, renderStars, iconClose, iconEdit } from '../ui';
+import { h, toast, confirmDialog, renderCoverPlaceholder, renderStars, iconClose, iconEdit } from '../ui';
 import { createBookEditForm, labelCls } from './book-edit-form';
 import { refresh, refreshSidebar } from '../refresh';
 
@@ -136,7 +136,8 @@ export function renderDrawer(book: Book) {
           alt: '',
           class: 'absolute -inset-x-10 -inset-y-6 w-[calc(100%+5rem)] h-[calc(100%+3rem)] object-cover blur-xl scale-110 opacity-70',
         })
-      : null;
+      : h('div', { class: 'absolute -inset-x-10 -inset-y-6 overflow-hidden' },
+          renderCoverPlaceholder(current, 'table'));
     return h('div', { class: 'relative h-40 sm:h-48 overflow-hidden bg-[var(--bg-page)]' },
       backLayer,
       h('div', { class: 'absolute inset-0 bg-gradient-to-t from-[var(--bg-surface)] via-[var(--bg-surface)]/60 to-[var(--bg-surface)]/30' }),
@@ -178,10 +179,12 @@ export function renderDrawer(book: Book) {
           field('页数', current.page_count != null ? `${current.page_count} 页` : null),
           fieldLink('豆瓣链接', current.douban_url),
         ),
-        current.description ? h('div', { class: 'mt-3 pt-3 border-t border-[var(--border-subtle)]' },
+        h('div', { class: 'mt-3 pt-3 border-t border-[var(--border-subtle)]' },
           h('div', { class: 'text-xs font-medium text-[var(--text-muted)] mb-1.5' }, '简介'),
-          h('div', { class: 'text-sm leading-6 text-[var(--text-secondary)] max-h-36 overflow-y-auto pr-1 whitespace-pre-wrap' }, current.description),
-        ) : null,
+          current.description
+            ? h('div', { class: 'text-sm leading-6 text-[var(--text-secondary)] max-h-36 overflow-y-auto pr-1 whitespace-pre-wrap' }, current.description)
+            : h('div', { class: 'text-sm leading-6 text-[var(--text-muted)]' }, '暂无简介'),
+        ),
       ),
       current.tags.length > 0 ? h('div', {},
         h('div', { class: 'text-xs text-[var(--text-muted)] mb-2' }, '标签'),

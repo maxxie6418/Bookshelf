@@ -7,26 +7,31 @@ import { refresh } from '../refresh';
 
 const inputCls = 'w-full px-3.5 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 placeholder:text-[var(--text-muted)] transition-colors';
 
-// 预置：发给外部 AI 的系统提示词（接入说明）
-const PROMPT_SETUP = `你是一个帮我管理个人书架（Bookshelf）的助手，可通过 HTTP 调用我的书架 API 来查询和管理藏书。
+// 预置：发给外部 AI 的系统提示词（接入说明）。
+// 主指令在前，接口与 Key 配置说明放末尾，便于用户先复制提示词、再复制 Key 顺着填。
+function promptSetupBody(): string {
+  const baseUrl = `${window.location.origin}/api/agent`;
+  return `你是一个帮我管理个人书架（Bookshelf）的助手，可通过 HTTP 调用我的书架 API 来查询和管理藏书。
 
-接口 Base URL（将「你的部署地址」替换为你的实际域名，其余路径固定）：
-- 你的部署地址/api/agent
+我会在下方提供接口地址（Base URL）与访问令牌（Agent Key）。请按约定的鉴权方式，在我需要时调用接口帮我查询、整理或管理书单，并保持礼貌、简洁。
 
-鉴权（Bearer Key，每个请求都必须带）：
+请在我给出具体需求后，再开始调用下方接口。
+
+——— 接口与访问配置 ———
+Base URL：${baseUrl}
+鉴权：每个请求都需在请求头携带 Bearer 令牌：
 Authorization: Bearer <你的 Agent Key>
 
 可用端点：
-- GET  /books          查询书籍，可选参数：status=unread|reading|finished、q 关键词、tag、category_id、sort、limit、offset
-- GET  /books/:id      查看单本详情
-- GET  /categories     分类列表（只读）
-- GET  /tags           标签列表（只读）
-- POST /books          新增书籍
-- PATCH /books/:id     编辑书籍
-- DELETE /books/:id    删除书籍（移入回收站）
-- GET  /export/books   导出全部藏书为 CSV
-
-请礼貌、简洁地完成任务；当用户需要查询、整理或管理书单时，直接调用上述接口。`;
+- GET  ${baseUrl}/books          查询书籍（可选 status / q / tag / category_id / sort / limit / offset）
+- GET  ${baseUrl}/books/:id      查看单本详情
+- GET  ${baseUrl}/categories     分类列表（只读）
+- GET  ${baseUrl}/tags           标签列表（只读）
+- POST ${baseUrl}/books          新增书籍
+- PATCH ${baseUrl}/books/:id     编辑书籍
+- DELETE ${baseUrl}/books/:id    删除书籍（移入回收站）
+- GET  ${baseUrl}/export/books   导出全部藏书为 CSV`;
+}
 
 interface AgentKey {
   hash: string;
@@ -113,6 +118,31 @@ function copyablePrompt(title: string, body: string): HTMLElement {
       copyBtn,
     ),
     h('pre', { class: 'px-3 py-2.5 text-xs leading-relaxed text-[var(--text-secondary)] whitespace-pre-wrap font-sans max-h-48 overflow-y-auto' }, body),
+  );
+}
+
+// 单行可复制值（如 Base URL），帮助用户一键复制
+function copyableValue(label: string, value: string): HTMLElement {
+  const copyBtn = h('button', {
+    class: 'inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-[var(--bg-surface-hover)] transition-colors shrink-0',
+    title: '复制',
+    onclick: async () => {
+      try {
+        await navigator.clipboard.writeText(value);
+        copyBtn.textContent = '已复制 ✓';
+        toast('已复制 Base URL');
+        setTimeout(() => { copyBtn.textContent = '复制'; }, 1500);
+      } catch {
+        toast('复制失败，请手动选择复制', 'error');
+      }
+    },
+  }, '复制');
+  return h('div', { class: 'flex items-center justify-between gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 mb-2' },
+    h('div', { class: 'min-w-0' },
+      h('div', { class: 'text-xs text-[var(--text-muted)] mb-0.5' }, label),
+      h('code', { class: 'block text-xs font-mono text-[var(--accent)] break-all select-all' }, value),
+    ),
+    copyBtn,
   );
 }
 
@@ -205,8 +235,9 @@ async function renderAgentKeysSection(container: HTMLElement) {
 
     container.append(
       h('div', { class: 'text-xs text-[var(--text-secondary)] mb-2 leading-relaxed' },
-        '外部 AI 通过 Bearer Key 调用 /api/agent/* 管理书籍。下方预置提示词可一键复制后发给你的 AI：'),
-      copyablePrompt('系统提示词（接入说明）', PROMPT_SETUP),
+        '外部 AI 通过 Bearer Key 调用 /api/agent/* 管理书籍。复制下方 Base URL，再复制下方「系统提示词」发给你的 AI（接口地址已自动填入），最后把生成的 Agent Key 粘进提示词的鉴权位置即可：'),
+      copyableValue('接口 Base URL', `${window.location.origin}/api/agent`),
+      copyablePrompt('系统提示词（接入说明，可直接复制）', promptSetupBody()),
       h('div', { class: 'text-xs text-[var(--text-secondary)] mb-3 leading-relaxed mt-3' },
         '供外部 AI Agent 以 HTTP 调用查询/新增/编辑/删除书籍。删除仅软删至回收站，禁止 AI 操作回收站。写操作限频 10 次/10 分钟，删除限频 10 次/1 小时。'),
       items,
