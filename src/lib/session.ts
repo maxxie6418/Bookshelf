@@ -19,6 +19,11 @@ function sessionSecret(env: Env): string {
   return `bs-dflt-${hash.toString(16).padStart(8, '0')}`;
 }
 
+// 供其他模块使用同一有效 secret（如 Agent Key 的 AES 加密派生密钥），保证与签名密钥一致。
+export function getSessionSecret(env: Env): string {
+  return sessionSecret(env);
+}
+
 export interface SessionPayload {
   uid: number;
   exp: number;

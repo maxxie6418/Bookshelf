@@ -1,10 +1,11 @@
 // AI Agent Key 管理端点 /api/agent-keys（仅登录管理员，session 鉴权）
-// 支持列表 / 新建（返回明文一次）/ 撤销，上限 3 个活跃 key
+// 支持列表 / 新建（返回明文一次）/ 按需回显 / 撤销，上限 3 个活跃 key
 import { Hono } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
 import { requireAuth } from '../lib/guard';
-import { listAgentKeys, createAgentKey, revokeAgentKey } from '../lib/agent-key';
+import { listAgentKeys, createAgentKey, revealAgentKey, revokeAgentKey } from '../lib/agent-key';
+import { getSessionSecret } from '../lib/session';
 
 export const agentKeysRoutes = new Hono<{ Bindings: Env }>();
 agentKeysRoutes.use(requireAuth);
@@ -29,11 +30,19 @@ agentKeysRoutes.post('/', async (c) => {
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) return err(c, 'VALIDATION_ERROR', parsed.error.issues[0]?.message ?? '参数错误');
   try {
-    const { plain, meta } = await createAgentKey(c.env.KV, parsed.data.label ?? '');
+    const { plain, meta } = await createAgentKey(c.env.KV, parsed.data.label ?? '', getSessionSecret(c.env));
     return c.json({ data: { ...meta, key: plain } }, 201);
   } catch (e) {
     return err(c, 'KEY_LIMIT_REACHED', String((e as Error).message ?? '达到上限'), 409);
   }
+});
+
+// POST /api/agent-keys/:hash/reveal（按需回显明文，用于复制展示；不影响鉴权一致性）
+agentKeysRoutes.post('/:hash/reveal', async (c) => {
+  const hash = c.req.param('hash');
+  const plain = await revealAgentKey(c.env.KV, getSessionSecret(c.env), hash);
+  if (plain === null) return err(c, 'NOT_FOUND', '无法回显（不存在或密钥已失效）', 404);
+  return c.json({ data: { key: plain } });
 });
 
 // DELETE /api/agent-keys/:hash（撤销 key，立即失效）

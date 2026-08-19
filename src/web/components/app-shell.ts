@@ -6,7 +6,7 @@ import { refresh, refreshSidebar } from '../refresh';
 import { renderBookList } from './book-list';
 import { renderTrash } from './trash-panel';
 import { openSettings, openAgentSettings, toggleTheme } from './settings-panel';
-import { openManageCategories, openManageTags } from './manage-taxonomy';
+import { renderTaxonomyManage } from './manage-taxonomy';
 
 export function mountAppShell(root: HTMLElement) {
   root.replaceChildren();
@@ -128,18 +128,36 @@ function renderSidebar(): HTMLElement {
 
   const section = (title: string, children: HTMLElement[], extra?: HTMLElement) =>
     h('div', { class: 'mb-5' },
-      h('div', { class: 'flex items-center justify-between px-3 mb-2' },
+      h('div', { class: 'flex items-center justify-between px-3 mb-1.5' },
         h('h3', { class: 'text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider' }, title),
         extra ?? null,
       ),
       ...children,
     );
 
-  const manageBtn = (onclick: () => void) =>
-    h('button', {
-      class: 'text-[11px] text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors',
-      onclick,
-    }, '管理');
+  // 分类/标签：管理按钮（进入/退出内联编辑态，不弹窗）
+  const taxBtn = (kind: 'category' | 'tag') => {
+    const editing = state.taxEdit === kind;
+    return h('button', {
+      class: 'text-[11px] transition-colors ' + (editing
+        ? 'text-[var(--accent)] font-medium'
+        : 'text-[var(--text-muted)] hover:text-[var(--accent)]'),
+      onclick: () => setState({ taxEdit: editing ? null : kind }),
+    }, editing ? '完成' : '管理');
+  };
+
+  // 分类/标签内容：编辑态就地显示内联管理列表，否则显示筛选列表
+  const taxBody = (kind: 'category' | 'tag'): HTMLElement => {
+    if (state.taxEdit === kind) {
+      const box = h('div', { class: 'space-y-0.5 px-3' });
+      renderTaxonomyManage(kind, box);
+      return box;
+    }
+    const rows = kind === 'category'
+      ? state.categories.map((c) => item(c.name, f.categoryId === c.id, c.count, () => clickFilter({ categoryId: f.categoryId === c.id ? undefined : c.id })))
+      : state.tags.map((t) => item(`#${t.name}`, f.tag === t.name, t.count, () => clickFilter({ tag: f.tag === t.name ? undefined : t.name })));
+    return h('div', { class: 'space-y-0.5' }, ...rows);
+  };
 
   const extLink = (href: string, title: string, icon: (s?: number) => HTMLElement) =>
     h('a', {
@@ -165,14 +183,12 @@ function renderSidebar(): HTMLElement {
           h('div', { class: 'text-xs text-[var(--text-muted)] mt-0.5' }, '在读'),
         ),
       ),
-      // 分类筛选（置顶，最醒目）
-      section('分类', state.categories.map((c) =>
-        item(c.name, f.categoryId === c.id, c.count, () => clickFilter({ categoryId: f.categoryId === c.id ? undefined : c.id })),
-      ), manageBtn(openManageCategories)),
-      // 标签筛选
-      section('标签', state.tags.map((t) =>
-        item(`#${t.name}`, f.tag === t.name, t.count, () => clickFilter({ tag: f.tag === t.name ? undefined : t.name })),
-      ), manageBtn(openManageTags)),
+      // 分类筛选（置顶，占上半部）
+      section('分类', [taxBody('category')], taxBtn('category')),
+      // 分隔线：区分分类区与标签区
+      h('div', { class: 'mx-3 border-t border-[var(--border-subtle)] my-1' }),
+      // 标签筛选（延伸到底部快捷图标前）
+      section('标签', [taxBody('tag')], taxBtn('tag')),
     ),
     // 底部：外部快捷链接 + 操作按钮（贴底）
     h('div', { class: 'mt-auto pt-3' },
@@ -181,30 +197,32 @@ function renderSidebar(): HTMLElement {
         extLink('https://dash.cloudflare.com', 'Cloudflare', iconCloudflare),
         extLink('https://book.douban.com/', '豆瓣读书', iconDouban),
       ),
-      h('div', { class: 'flex items-center justify-around pt-3 border-t border-[var(--border-subtle)]' },
-        h('button', {
-          class: 'p-2 rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors text-[var(--text-secondary)]',
-          title: '切换主题',
-          onclick: toggleTheme,
-        }, state.theme === 'dark' ? iconSun(18) : iconMoon(18)),
-        h('button', {
-          class: 'p-2 rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors text-[var(--text-secondary)]',
-          title: 'Agent 设置',
-          onclick: openAgentSettings,
-        }, iconKey(18)),
-        h('button', {
-          class: 'p-2 rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors text-[var(--text-secondary)]',
-          title: '设置',
-          onclick: openSettings,
-        }, iconSettings(18)),
-        h('button', {
-          class: 'p-2 rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors text-[var(--text-secondary)]',
-          title: '退出',
-          onclick: async () => {
-            await api.logout().catch(() => undefined);
-            window.location.reload();
-          },
-        }, iconLogout(18)),
+      h('div', { class: 'pt-3 border-t border-[var(--border-subtle)]' },
+        h('div', { class: 'grid grid-cols-2 gap-1.5 p-1.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-default)] shadow-paper' },
+          h('button', {
+            class: 'flex items-center justify-center aspect-square rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors text-[var(--text-secondary)] hover:text-[var(--accent)]',
+            title: '切换主题',
+            onclick: toggleTheme,
+          }, state.theme === 'dark' ? iconSun(16) : iconMoon(16)),
+          h('button', {
+            class: 'flex items-center justify-center aspect-square rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors text-[var(--text-secondary)] hover:text-[var(--accent)]',
+            title: 'Agent 设置',
+            onclick: openAgentSettings,
+          }, iconKey(16)),
+          h('button', {
+            class: 'flex items-center justify-center aspect-square rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors text-[var(--text-secondary)] hover:text-[var(--accent)]',
+            title: '设置',
+            onclick: openSettings,
+          }, iconSettings(16)),
+          h('button', {
+            class: 'flex items-center justify-center aspect-square rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors text-[var(--text-secondary)] hover:text-red-500',
+            title: '退出',
+            onclick: async () => {
+              await api.logout().catch(() => undefined);
+              window.location.reload();
+            },
+          }, iconLogout(16)),
+        ),
       ),
     ),
   );

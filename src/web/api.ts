@@ -93,8 +93,9 @@ export const api = {
   deleteTag: (id: number) => request<void>(`/tags/${id}`, { method: 'DELETE' }),
 
   // AI agent keys（管理）
-  listAgentKeys: () => request<{ hash: string; label: string; created_at: string; prefix: string; last_used_at?: string | null }[]>('/agent-keys'),
-  createAgentKey: (label: string) => request<{ hash: string; label: string; created_at: string; prefix: string; key: string }>('/agent-keys', { method: 'POST', body: JSON.stringify({ label }) }),
+  listAgentKeys: () => request<{ hash: string; label: string; created_at: string; prefix: string; suffix?: string; last_used_at?: string | null }[]>('/agent-keys'),
+  createAgentKey: (label: string) => request<{ hash: string; label: string; created_at: string; prefix: string; suffix?: string; key: string }>('/agent-keys', { method: 'POST', body: JSON.stringify({ label }) }),
+  revealAgentKey: (hash: string) => request<{ key: string }>(`/agent-keys/${hash}/reveal`, { method: 'POST' }),
   revokeAgentKey: (hash: string) => request<void>(`/agent-keys/${hash}`, { method: 'DELETE' }),
 
   // 导出/导入

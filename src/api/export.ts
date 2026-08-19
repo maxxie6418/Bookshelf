@@ -23,6 +23,7 @@ export function exportBookToRow(b: {
   isbn: string | null;
   description: string | null;
   notes: string | null;
+  reason: string | null;
   douban_url: string | null;
   rating: number | null;
   status: string;
@@ -40,6 +41,7 @@ export function exportBookToRow(b: {
     'ISBN': b.isbn ?? '',
     '简介': b.description ?? '',
     '记录': b.notes ?? '',
+    '录入理由': b.reason ?? '',
     '豆瓣链接': b.douban_url ?? '',
     '评分': b.rating ?? '',
     '状态': statusLabel[b.status] ?? b.status,

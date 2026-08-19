@@ -1,7 +1,11 @@
 // 分类 / 标签管理：新增、删除、改名（复用 /api/categories、/api/tags）
+// 以内联方式渲染进侧栏分区（替代弹窗），避免 UI 推挤：
+// - 进入编辑态后，列表内条目带「改名/删除」操作；
+// - 列表末尾出现一个「待命名」新增行，命名后回车/保存即创建，为空则忽略（退出时撤回归位）；
+// - 行高固定、就地置换，不改动侧栏整体高度。
 import { api } from '../api';
 import { state } from '../state';
-import { h, toast, modal, iconPlus, iconEdit, iconTrash } from '../ui';
+import { h, toast, iconPlus } from '../ui';
 import { refresh, refreshSidebar } from '../refresh';
 
 type Kind = 'category' | 'tag';
@@ -19,128 +23,108 @@ async function afterChange() {
   await refresh();
 }
 
-// 单个条目行：名称（编辑）+ 该条目计数 + 保存改名 + 删除
-function row(kind: Kind, item: { id: number; name: string; count: number; color?: string }): HTMLElement {
+// 内联编辑态下的单个条目行（固定高度，就地置换，不做重排，避免 UI 推挤）
+function row(kind: Kind, item: { id: number; name: string; count: number; color?: string }, rebuild: () => void): HTMLElement {
   const input = h('input', {
     type: 'text',
     value: item.name,
     maxlength: kind === 'category' ? 30 : 20,
-    class: 'flex-1 min-w-0 px-2.5 py-1.5 text-sm bg-transparent border border-transparent rounded-lg focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/40 outline-none text-[var(--text-primary)] transition-colors',
+    class: 'flex-1 min-w-0 px-1.5 py-1 text-sm bg-transparent border border-transparent rounded-md focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/40 outline-none text-[var(--text-primary)] transition-colors',
   });
+  const enterSave = (e: KeyboardEvent) => { if (e.key === 'Enter') { e.preventDefault(); saveName(); } };
+  input.addEventListener('keydown', enterSave);
 
-  const deleteBtn = h('button', {
-    class: 'p-1.5 rounded-lg text-[var(--text-muted)] hover:text-red-500 hover:bg-red-500/10 transition-colors',
-    title: '删除',
-    onclick: async () => {
-      if (!confirm(`确定删除${kind === 'category' ? '分类' : '标签'}「${item.name}」吗？`)) return;
-      try {
-        if (kind === 'category') await api.deleteCategory(item.id);
-        else await api.deleteTag(item.id);
-        toast(`已删除「${item.name}」`);
-        await afterChange();
-        renderList();
-      } catch (e) {
-        toast((e as Error).message, 'error');
-      }
-    },
-  }, iconTrash(16));
+  const actionBtn = (label: string, title: string, cls: string, onclick: () => void) =>
+    h('button', {
+      class: `px-1.5 py-0.5 text-[11px] rounded-md shrink-0 transition-colors ${cls}`,
+      title,
+      onclick,
+    }, label);
 
-  const editBtn = h('button', {
-    class: 'p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/10 transition-colors',
-    title: '保存改名',
-    onclick: async () => {
-      const name = input.value.trim();
-      if (!name) { toast('名称不能为空', 'error'); return; }
-      if (name === item.name) return;
-      try {
-        if (kind === 'category') await api.updateCategory(item.id, { name });
-        else await api.updateTag(item.id, name);
-        toast('已改名');
-        await afterChange();
-        renderList();
-      } catch (e) {
-        toast((e as Error).message, 'error');
-      }
-    },
-  }, iconEdit(16));
+  const saveName = async () => {
+    const name = input.value.trim();
+    if (!name) { toast('名称不能为空', 'error'); return; }
+    if (name === item.name) return;
+    try {
+      if (kind === 'category') await api.updateCategory(item.id, { name });
+      else await api.updateTag(item.id, name);
+      toast('已改名');
+      await afterChange();
+      rebuild();
+    } catch (e) {
+      toast((e as Error).message, 'error');
+    }
+  };
 
-  const nameWrap = h('div', { class: 'flex-1 min-w-0 flex items-center gap-2' },
+  const confirmName = `确定删除${kind === 'category' ? '分类' : '标签'}「${item.name}」吗？关联的${kind === 'category' ? '书籍将变为未分类' : '书籍标签将被移除'}。`;
+  const del = async () => {
+    if (!confirm(confirmName)) return;
+    try {
+      if (kind === 'category') await api.deleteCategory(item.id);
+      else await api.deleteTag(item.id);
+      toast(`已删除「${item.name}」`);
+      await afterChange();
+      rebuild();
+    } catch (e) {
+      toast((e as Error).message, 'error');
+    }
+  };
+
+  return h('div', { class: 'flex items-center gap-1 min-h-0' },
     kind === 'category'
       ? h('span', { class: 'w-2.5 h-2.5 rounded-sm shrink-0', style: `background:${item.color ?? '#8a8274'}` })
-      : h('span', { class: 'text-[var(--accent)] shrink-0' }, '#'),
+      : h('span', { class: 'text-[var(--accent)] text-xs shrink-0' }, '#'),
     input,
-  );
-
-  const count = h('span', { class: 'text-xs text-[var(--text-muted)] font-mono shrink-0' }, String(item.count));
-
-  // 重名校验提示由后端返回错误
-  return h('div', { class: 'flex items-center gap-1.5 p-2 rounded-xl border border-[var(--border-default)]' },
-    nameWrap,
-    count,
-    editBtn,
-    deleteBtn,
+    actionBtn('改名', '保存改名', 'text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--bg-surface-hover)]', saveName),
+    actionBtn('删除', '删除', 'text-[var(--text-muted)] hover:text-red-500 hover:bg-red-500/10', del),
   );
 }
 
-let overlay: HTMLElement | null = null;
-let currentKind: Kind = 'category';
-
-function renderList() {
-  const listEl = document.getElementById('tax-list');
-  if (!listEl) return;
-  const items = listOf(currentKind);
-  listEl.replaceChildren(...items.map((it) => row(currentKind, it)));
-}
-
-function openManage(kind: Kind) {
-  currentKind = kind;
-
-  const title = kind === 'category' ? '管理分类' : '管理标签';
-
-  const nameInput = h('input', {
+// 列表末尾的「待命名」新增行：命名后回车/保存创建；为空则忽略
+function newRow(kind: Kind, rebuild: () => void): HTMLElement {
+  const input = h('input', {
     type: 'text',
-    placeholder: kind === 'category' ? '新分类名称' : '新标签名称',
+    placeholder: kind === 'category' ? '新分类名称…' : '新标签名称…',
     maxlength: kind === 'category' ? 30 : 20,
-    class: 'flex-1 min-w-0 px-3 py-2 text-sm bg-[var(--bg-page)] border border-[var(--border-default)] rounded-lg focus:ring-2 focus:ring-[var(--accent)]/40 focus:border-[var(--accent)] outline-none text-[var(--text-primary)]',
+    class: 'flex-1 min-w-0 px-1.5 py-1 text-sm bg-transparent placeholder:text-[var(--text-muted)] outline-none text-[var(--text-primary)]',
   });
-
-  const addBtn = h('button', {
-    class: 'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text)] text-sm font-medium transition-colors shrink-0',
-    onclick: async () => {
-      const name = nameInput.value.trim();
-      if (!name) { toast('请输入名称', 'error'); return; }
-      try {
-        if (kind === 'category') {
-          const color = kind === 'category' ? CATEGORY_COLORS[state.categories.length % CATEGORY_COLORS.length] : undefined;
-          await api.createCategory(name, color!);
-        } else {
-          await api.createTag(name);
-        }
-        nameInput.value = '';
-        toast('已新增');
-        await afterChange();
-        renderList();
-      } catch (e) {
-        toast((e as Error).message, 'error');
+  const create = async () => {
+    const name = input.value.trim();
+    if (!name) { toast('请输入名称', 'error'); return; }
+    try {
+      if (kind === 'category') {
+        const color = CATEGORY_COLORS[state.categories.length % CATEGORY_COLORS.length];
+        await api.createCategory(name, color!);
+      } else {
+        await api.createTag(name);
       }
-    },
-  }, iconPlus(16), '新增');
-
-  const addRow = h('div', { class: 'flex items-center gap-2 mb-4' }, nameInput, addBtn);
-
-  const listEl = h('div', { id: 'tax-list', class: 'space-y-2 max-h-[55vh] overflow-y-auto pr-1' });
-
-  const content = h('div', null, addRow, listEl);
-
-  const onClose = () => { overlay = null; };
-  overlay = modal(title, content, onClose);
-  renderList();
+      toast('已新增');
+      await afterChange();
+      rebuild();
+    } catch (e) {
+      toast((e as Error).message, 'error');
+    }
+  };
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); void create(); } });
+  return h('div', { class: 'flex items-center gap-1' },
+    h('span', { class: kind === 'category' ? 'w-2.5 h-2.5 rounded-sm shrink-0 bg-[var(--accent)]/30' : 'text-[var(--accent)] text-xs shrink-0' }, '#'),
+    input,
+    h('button', {
+      class: 'px-2 py-1 rounded-md bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text)] text-[11px] font-medium shrink-0 transition-colors',
+      title: '保存新增',
+      onclick: () => void create(),
+    }, iconPlus(14), '保存'),
+  );
 }
 
-export function openManageCategories() {
-  openManage('category');
-}
-
-export function openManageTags() {
-  openManage('tag');
+// 在侧栏分区容器内渲染内联编辑管理 UI；容器由侧栏按需创建（避免推挤）
+export function renderTaxonomyManage(kind: Kind, container: HTMLElement): void {
+  const rebuild = () => {
+    const items = listOf(kind);
+    container.replaceChildren(
+      ...items.map((it) => row(kind, it, rebuild)),
+      newRow(kind, rebuild),
+    );
+  };
+  rebuild();
 }

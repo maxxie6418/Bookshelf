@@ -19,6 +19,7 @@ export const state = {
   formOpen: false,
   formBook: null as Book | null, // null=新增，Book=编辑
   settingsOpen: false,
+  taxEdit: null as 'category' | 'tag' | null, // 侧栏分类/标签内联编辑态
   theme: 'light',
 };
 

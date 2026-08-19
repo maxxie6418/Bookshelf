@@ -173,6 +173,10 @@ export function iconPlus(size?: number) {
   return svgIcon(h('path', { d: 'M12 4.5v15m7.5-7.5h-15' }), size);
 }
 
+export function iconCopy(size?: number) {
+  return svgIcon(h('path', { d: 'M15.75 17.25v3.375A1.875 1.875 0 0 1 13.875 22.5h-9.75A1.875 1.875 0 0 1 2.25 20.625v-9.75A1.875 1.875 0 0 1 4.125 9h3.375m6.75 0a1.875 1.875 0 0 1 1.875 1.875v7.5a1.875 1.875 0 0 0 1.875 1.875h3.375a1.875 1.875 0 0 0 1.875-1.875v-7.5a1.875 1.875 0 0 0-1.875-1.875H13.125a1.875 1.875 0 0 1-1.875-1.875V4.125A1.875 1.875 0 0 0 9.375 2.25h-3.75A1.875 1.875 0 0 0 3.75 4.125v13.5' }), size);
+}
+
 export function iconDownload(size?: number) {
   return svgIcon(h('path', { d: 'M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3' }), size);
 }

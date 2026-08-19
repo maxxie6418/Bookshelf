@@ -14,6 +14,7 @@ export interface BookInput {
   isbn?: string | null;
   description?: string | null;
   notes?: string | null;
+  reason?: string | null;
   cover_url?: string | null;
   douban_url?: string | null;
   rating?: number | null;
@@ -35,6 +36,7 @@ export interface BookRow {
   isbn: string | null;
   description: string | null;
   notes: string | null;
+  reason: string | null;
   cover_url: string | null;
   douban_url: string | null;
   rating: number | null;
@@ -204,9 +206,9 @@ export async function createBook(db: D1Database, input: BookInput) {
     .prepare(
       `INSERT INTO books (
         title, author, translator, publisher, publish_year, page_count, original_title,
-        isbn, description, notes, cover_url, douban_url, rating, status, category_id, sort_order,
+        isbn, description, notes, reason, cover_url, douban_url, rating, status, category_id, sort_order,
         source, started_at, finished_at, created_at, updated_at
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,?,?,?, datetime('now'), datetime('now'))`,
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,?,?,?, datetime('now'), datetime('now'))`,
     )
     .bind(
       input.title,
@@ -219,6 +221,7 @@ export async function createBook(db: D1Database, input: BookInput) {
       input.isbn ?? null,
       input.description ?? null,
       input.notes ?? null,
+      input.reason ?? null,
       input.cover_url ?? null,
       input.douban_url ?? null,
       input.rating ?? null,
@@ -274,6 +277,7 @@ export async function updateBook(db: D1Database, id: number, input: Partial<Book
   if (input.isbn !== undefined) push('isbn', input.isbn);
   if (input.description !== undefined) push('description', input.description);
   if (input.notes !== undefined) push('notes', input.notes);
+  if (input.reason !== undefined) push('reason', input.reason);
   if (input.cover_url !== undefined) push('cover_url', input.cover_url);
   if (input.douban_url !== undefined) push('douban_url', input.douban_url);
   if (input.rating !== undefined) push('rating', input.rating);
