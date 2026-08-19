@@ -1,7 +1,7 @@
 // 设置面板：修改口令 / 数据管理（导入导出 / 回收站）
 import { api } from '../api';
 import { setState, state } from '../state';
-import { h, toast, modal, iconTrash, confirmDialog } from '../ui';
+import { h, toast, modal, iconTrash, iconCopy, confirmDialog } from '../ui';
 import { renderImportExportButtons } from './import-export';
 import { refresh } from '../refresh';
 
@@ -12,7 +12,14 @@ interface AgentKey {
   label: string;
   created_at: string;
   prefix: string;
+  suffix?: string;
   last_used_at?: string | null;
+}
+
+// 掩码展示：前 4 位 + 星号 + 后 4 位（老 key 无后 4 位则仅前 4 位 + 星号）
+function maskKey(k: { prefix: string; suffix?: string }): string {
+  const stars = '•'.repeat(8);
+  return `${k.prefix}${stars}${k.suffix ?? ''}`;
 }
 
 function formatTime(t?: string | null): string {
@@ -49,7 +56,7 @@ function showKeyPlaintext(plain: string, label: string) {
       h('h2', { class: 'text-lg font-semibold text-[var(--text-primary)]' }, 'Key 已生成'),
     ),
     h('p', { class: 'text-sm text-[var(--text-secondary)] mb-3' },
-      `「${label || '未命名'}」的明文只会显示这一次，关闭后无法再查看，请立即复制并妥善保存：`),
+      `「${label || '未命名'}」的明文只在此显示以便复制；关闭后可在下方列表中随时再次复制（显示前 4 与后 4 位，中间隐藏）：`),
     codeTag,
     h('div', { class: 'flex gap-3 mt-4' }, copyBtn, done),
   );
@@ -83,25 +90,48 @@ async function renderAgentKeysSection(container: HTMLElement) {
               h('div', { class: 'min-w-0' },
                 h('div', { class: 'flex items-center gap-2 text-sm text-[var(--text-primary)]' },
                   h('span', {}, k.label || '未命名'),
-                  h('code', { class: 'text-xs text-[var(--text-muted)] font-mono' }, `${k.prefix}••••••••`),
+                  h('code', { class: 'text-xs text-[var(--text-muted)] font-mono' }, maskKey(k)),
                 ),
                 h('div', { class: 'text-xs text-[var(--text-muted)] mt-0.5' },
                   `创建于 ${new Date(k.created_at).toLocaleString()} · 上次使用：${formatTime(k.last_used_at)}`),
               ),
-              h('button', {
-                class: 'p-1.5 rounded-lg text-[var(--text-muted)] hover:text-red-500 hover:bg-[var(--bg-surface-hover)] transition-colors shrink-0',
-                title: '撤销此 Key',
-                onclick: async () => {
-                  if (!(await confirmDialog(`撤销后该 Key 立即失效且无法恢复，确定撤销「${k.label || '未命名'}」？`))) return;
-                  try {
-                    await api.revokeAgentKey(k.hash);
-                    toast('已撤销该 Key');
-                    await refresh();
-                  } catch (e) {
-                    toast((e as Error).message, 'error');
-                  }
-                },
-              }, iconTrash(16)),
+              h('div', { class: 'flex items-center gap-1 shrink-0' },
+                h('button', {
+                  class: 'p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--bg-surface-hover)] transition-colors',
+                  title: '复制此 Key（明文）',
+                  onclick: async (e: Event) => {
+                    if (!k.suffix) {
+                      toast('该 Key 为历史版本，无法回显明文，请重新生成', 'error');
+                      return;
+                    }
+                    const btn = e.currentTarget as HTMLElement;
+                    btn.style.opacity = '0.6';
+                    try {
+                      const { key } = await api.revealAgentKey(k.hash);
+                      await navigator.clipboard.writeText(key);
+                      btn.style.opacity = '1';
+                      toast('已复制完整 Key');
+                    } catch (err) {
+                      btn.style.opacity = '1';
+                      toast((err as Error).message, 'error');
+                    }
+                  },
+                }, iconCopy(16)),
+                h('button', {
+                  class: 'p-1.5 rounded-lg text-[var(--text-muted)] hover:text-red-500 hover:bg-[var(--bg-surface-hover)] transition-colors',
+                  title: '撤销此 Key',
+                  onclick: async () => {
+                    if (!(await confirmDialog(`撤销后该 Key 立即失效且无法恢复，确定撤销「${k.label || '未命名'}」？`))) return;
+                    try {
+                      await api.revokeAgentKey(k.hash);
+                      toast('已撤销该 Key');
+                      await refresh();
+                    } catch (e) {
+                      toast((e as Error).message, 'error');
+                    }
+                  },
+                }, iconTrash(16)),
+              ),
             ),
           ),
         )
@@ -117,7 +147,7 @@ async function renderAgentKeysSection(container: HTMLElement) {
         }
         try {
           const created = await api.createAgentKey(label.value);
-          toast('Key 已创建，请立即复制保存（仅显示一次）');
+          toast('Key 已创建，请复制保存；之后仍可在列表中再次复制');
           showKeyPlaintext(created.key, created.label || label.value || '未命名');
           label.value = '';
           await refresh();
@@ -196,8 +226,8 @@ export function openSettings() {
       h('p', { class: 'text-xs text-[var(--text-secondary)] mt-2' }, '导出「模版」获取空白表头、「内容」导出全部藏书；导入支持 CSV，二次确认后写入。'),
     ),
     h('div', { class: 'text-xs text-[var(--text-secondary)] leading-relaxed' },
-      h('h3', { class: 'text-sm font-medium text-[var(--text-primary)] mb-1' }, 'AI 查询'),
-      h('p', {}, 'AI 查询（M4）使用 OpenAI 兼容接口，API Key 通过部署 secret 配置，本面板不收集密钥。AI Agent 接入在侧栏「Agent」配置。'),
+      h('h3', { class: 'text-sm font-medium text-[var(--text-primary)] mb-1' }, 'AI Agent'),
+      h('p', {}, '外部 AI 通过 Bearer Key 调用 /api/agent/* 查询/新增/编辑/删除书籍，Key 在「Agent」面板管理，可随时复制完整明文。'),
       h('p', { class: 'mt-1' }, `当前登录：${state.user?.username ?? 'admin'}`),
     ),
   );

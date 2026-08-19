@@ -113,16 +113,17 @@ export function renderDrawer(book: Book) {
         ),
       ) : null,
       current.notes ? h('div', {},
-        h('div', { class: 'text-xs text-[var(--text-muted)] mb-2' }, '记录'),
+        h('div', { class: 'text-xs text-[var(--text-muted)] mb-2' }, '笔记'),
         h('p', { class: 'text-sm leading-relaxed text-[var(--text-secondary)] whitespace-pre-wrap' }, current.notes),
       ) : null,
-      h('div', { class: 'flex gap-3 pt-2 pb-4' },
-        h('button', { class: 'flex-1 px-4 py-2.5 border border-[var(--border-default)] rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] transition-colors', onclick: close }, '关闭'),
-        h('button', { class: 'flex-1 px-4 py-2.5 bg-[var(--accent)] text-[var(--accent-text)] rounded-lg text-sm font-medium hover:bg-[var(--accent-hover)] transition-colors', onclick: () => enterEdit(current) }, '编辑'),
-      ),
-      h('div', { class: 'pt-2 border-t border-[var(--border-subtle)]' },
+      current.reason ? h('div', {},
+        h('div', { class: 'text-xs text-[var(--text-muted)] mb-2' }, '录入理由'),
+        h('p', { class: 'text-sm leading-relaxed text-[var(--text-secondary)] whitespace-pre-wrap' }, current.reason),
+      ) : null,
+      h('div', { class: 'pt-4 border-t border-[var(--border-subtle)] flex items-center justify-between gap-3' },
         h('button', {
-          class: 'px-4 py-2 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 text-sm',
+          class: 'px-3 py-2 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 text-sm transition-colors',
+          title: '移入回收站',
           onclick: async () => {
             const ok = await confirmDialog(`把《${current.title}》移入回收站？可随时恢复。`);
             if (!ok) return;
@@ -137,6 +138,10 @@ export function renderDrawer(book: Book) {
             }
           },
         }, '移入回收站'),
+        h('div', { class: 'flex gap-3' },
+          h('button', { class: 'flex-1 px-4 py-2.5 border border-[var(--border-default)] rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] transition-colors', onclick: close }, '关闭'),
+          h('button', { class: 'flex-1 px-4 py-2.5 bg-[var(--accent)] text-[var(--accent-text)] rounded-lg text-sm font-medium hover:bg-[var(--accent-hover)] transition-colors', onclick: () => enterEdit(current) }, '编辑'),
+        ),
       ),
     );
   }
@@ -170,7 +175,8 @@ export function renderDrawer(book: Book) {
       editField('标签', els.tags),
       editField('封面 URL', els.coverUrl),
       editField('简介', els.description),
-      editField('记录', els.notes),
+      editField('笔记', els.notes),
+      editField('录入理由', els.reason),
       h('div', { class: 'flex gap-3 pt-3 pb-4' },
         h('button', { class: 'flex-1 px-4 py-2.5 border border-[var(--border-default)] rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] transition-colors', onclick: () => renderDisplay(current) }, '取消'),
         h('button', {

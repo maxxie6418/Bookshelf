@@ -12,6 +12,7 @@ export const BOOK_COLUMNS = [
   'ISBN',
   '简介',
   '记录',
+  '录入理由',
   '豆瓣链接',
   '评分',
   '状态',

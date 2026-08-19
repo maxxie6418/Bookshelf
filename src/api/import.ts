@@ -26,6 +26,7 @@ export interface PreparedBook {
   isbn: string | null;
   description: string | null;
   notes: string | null;
+  reason: string | null;
   cover_url: string | null;
   douban_url: string | null;
   rating: number | null;
@@ -52,6 +53,7 @@ function rowToPrepared(r: Record<string, string>): PreparedBook {
     isbn: r['ISBN']?.trim() || null,
     description: r['简介']?.trim() || null,
     notes: r['记录']?.trim() || null,
+    reason: r['录入理由']?.trim() || null,
     cover_url: null,
     douban_url: r['豆瓣链接']?.trim() || null,
     rating: num(r['评分']),
@@ -152,6 +154,7 @@ importRoutes.post('/books/batch', async (c) => {
       isbn: imp.isbn,
       description: imp.description,
       notes: imp.notes,
+      reason: imp.reason,
       cover_url: imp.cover_url,
       douban_url: imp.douban_url,
       rating: imp.rating,

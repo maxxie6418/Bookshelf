@@ -7,6 +7,7 @@ import { SCHEMA_STATEMENTS } from './schema';
 let seeded = false;
 let schemaReady = false;
 let notesColumnReady = false;
+let reasonColumnReady = false;
 
 // 幂等建表：仅当 users 表缺失时执行内置 schema（与 migrations/0000_init.sql 一致），
 // 使「Deploy to Cloudflare」等不执行迁移命令的部署方式也能自动完成建表。
@@ -39,9 +40,26 @@ async function ensureBookNotesColumn(env: Env): Promise<void> {
   notesColumnReady = true;
 }
 
+// 幂等增量迁移：为已有 books 表补 reason（录入理由）列（可重复执行，缺列才 ALTER）。
+// 适配已存在数据的本地/线上库；全新库直接走 schema.ts/migrations 内置 reason 列。
+async function ensureBookReasonColumn(env: Env): Promise<void> {
+  if (reasonColumnReady) return;
+  try {
+    const cols = await env.DB.prepare('PRAGMA table_info(books)').all<{ name: string }>();
+    const hasReason = cols.results?.some((c) => c.name === 'reason');
+    if (!hasReason) {
+      await env.DB.prepare('ALTER TABLE books ADD COLUMN reason TEXT').run();
+    }
+  } catch {
+    // books 表不存在或其它错误时静默跳过，避免阻塞引导
+  }
+  reasonColumnReady = true;
+}
+
 export async function ensureAdmin(env: Env): Promise<void> {
   await ensureSchema(env);
   await ensureBookNotesColumn(env);
+  await ensureBookReasonColumn(env);
   if (seeded) return;
   const row = await env.DB.prepare('SELECT COUNT(*) AS c FROM users').first<{ c: number }>();
   if ((row?.c ?? 0) > 0) {

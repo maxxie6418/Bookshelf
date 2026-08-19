@@ -32,6 +32,7 @@ export function openBookForm(book?: Book) {
     field('封面 URL', els.coverUrl),
     field('简介', els.description),
     field('记录', els.notes),
+    field('录入理由', els.reason),
     h('div', { class: 'flex justify-end gap-3 pt-2' },
       h('button', { class: 'px-4 py-2 rounded-xl text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] text-sm transition-colors', onclick: () => overlay?.remove() }, '取消'),
       h('button', {

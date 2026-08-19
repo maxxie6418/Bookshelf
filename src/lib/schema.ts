@@ -27,6 +27,7 @@ export const SCHEMA_STATEMENTS: string[] = [
   isbn TEXT,
   description TEXT,
   notes TEXT,
+  reason TEXT,
   cover_url TEXT,
   douban_url TEXT,
   rating REAL,

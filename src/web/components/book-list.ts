@@ -59,19 +59,6 @@ export function renderBookList(container: HTMLElement) {
     sortSel.append(h('option', { value: v, selected: (state.filters.sort ?? 'updated_desc') === v ? '' : null }, label));
   }
 
-  // 阅读状态显示筛选（作为顶栏筛选）
-  const statusSel = h('select', {
-    class: 'text-sm bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-lg px-3 py-1.5 text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent)]/50 outline-none',
-    onchange: () => {
-      const v = statusSel.value === 'all' ? undefined : statusSel.value;
-      setState({ filters: { ...state.filters, status: v as typeof state.filters.status } });
-      void refresh();
-    },
-  });
-  for (const [v, label] of [['all', '全部状态'], ['unread', '未读'], ['reading', '在读'], ['finished', '已读完']] as const) {
-    statusSel.append(h('option', { value: v, selected: (state.filters.status ?? 'all') === v ? '' : null }, label));
-  }
-
   const viewToggle = h('div', { class: 'hidden sm:flex items-center bg-[var(--bg-page)] rounded-lg p-1' },
     h('button', {
       class: 'p-1.5 rounded-md transition-all text-[var(--text-secondary)] ' + (state.view === 'table'
@@ -96,20 +83,40 @@ export function renderBookList(container: HTMLElement) {
 
   // 当前视图标题
   const viewTitle = getViewTitle();
+  const statusButtons: { value: 'all' | 'unread' | 'reading' | 'finished'; label: string }[] = [
+    { value: 'all', label: '全部' },
+    { value: 'unread', label: '未读' },
+    { value: 'reading', label: '在读' },
+    { value: 'finished', label: '读完' },
+  ];
+  const statusGroup = h('div', { class: 'hidden md:flex items-center gap-1 bg-[var(--bg-page)] rounded-lg p-0.5 border border-[var(--border-default)]' });
+  for (const s of statusButtons) {
+    const active = (state.filters.status ?? 'all') === s.value;
+    statusGroup.append(h('button', {
+      class: 'px-3 py-1 rounded-md text-sm font-medium transition-all ' +
+        (active
+          ? 'bg-[var(--accent)] text-[var(--accent-text)] shadow-sm'
+          : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]'),
+      onclick: () => {
+        const v = s.value === 'all' ? undefined : s.value;
+        setState({ filters: { ...state.filters, status: v as typeof state.filters.status } });
+        void refresh();
+      },
+    }, s.label));
+  }
 
   main.append(
     // 列表头栏
     h('div', { class: 'sticky top-16 z-30 bg-[var(--bg-page)]/80 backdrop-blur-lg border-b border-[var(--border-default)] -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-3 mb-4' },
-      h('div', { class: 'flex items-center justify-between' },
-        h('div', { class: 'flex items-center gap-3' },
-          h('h2', { class: 'text-lg font-semibold font-display text-[var(--text-primary)]' }, viewTitle),
-          h('span', { class: 'text-sm text-[var(--text-muted)]' }, `${state.total} 本`),
+      h('div', { class: 'flex items-center justify-between gap-3 flex-wrap' },
+        h('div', { class: 'flex items-center gap-3 min-w-0' },
+          h('h2', { class: 'text-lg font-semibold font-display text-[var(--text-primary)] whitespace-nowrap' }, viewTitle),
+          h('span', { class: 'text-sm text-[var(--text-muted)] whitespace-nowrap' }, `${state.total} 本`),
+          statusGroup,
         ),
         h('div', { class: 'flex items-center gap-2' },
           h('span', { class: 'text-xs text-[var(--text-muted)] hidden sm:inline' }, '排序：'),
           sortSel,
-          h('span', { class: 'text-xs text-[var(--text-muted)] hidden sm:inline' }, '状态：'),
-          statusSel,
           viewToggle,
           addBtn,
         ),
@@ -322,7 +329,7 @@ function renderGrid(): HTMLElement {
       onclick: () => renderDrawer(b),
     });
     card.append(
-      h('div', { class: 'relative aspect-[3/4] overflow-hidden shadow-md group-hover:shadow-xl transition-shadow' },
+      h('div', { class: 'relative aspect-[3/4] overflow-hidden rounded-t-xl shadow-md group-hover:shadow-xl transition-shadow' },
         coverEl(b),
         b.status === 'reading'
           ? h('div', { class: 'absolute top-2 right-2 w-3 h-3 rounded-full bg-[var(--accent)] shadow-lg shadow-[var(--accent)]/50 status-reading-dot border-2 border-[var(--bg-surface)]' })
