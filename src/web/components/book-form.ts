@@ -28,6 +28,7 @@ export function openBookForm(book?: Book) {
     grid2(field('页数', els.pageCount), field('原作名', els.originalTitle)),
     grid2(field('ISBN', els.isbn), field('评分', els.rating)),
     grid2(field('状态', els.statusSel), field('分类', els.catSel)),
+    field('收藏', h('label', { class: 'inline-flex items-center gap-2 cursor-pointer w-fit' }, els.favorite, h('span', { class: 'text-sm text-[var(--text-secondary)]' }, '加入收藏'))),
     field('标签', els.tags),
     field('封面 URL', els.coverUrl),
     field('简介', els.description),

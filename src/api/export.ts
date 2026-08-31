@@ -9,7 +9,7 @@ import { toCsv, type BookCsvRow } from '../lib/csv';
 export const exportRoutes = new Hono<{ Bindings: Env }>();
 exportRoutes.use(requireAuth);
 
-const statusLabel: Record<string, string> = { unread: '未读', reading: '在读', finished: '已读完' };
+const statusLabel: Record<string, string> = { unread: '未读', reading: '在读', finished: '已读完', shelved: '搁置' };
 
 // 将书籍行映射为 CSV 行（供 session 导出与 AI Agent 导出复用）
 export function exportBookToRow(b: {
@@ -27,8 +27,10 @@ export function exportBookToRow(b: {
   douban_url: string | null;
   rating: number | null;
   status: string;
+  favorite: number;
   category_name: string | null;
   tags: string[];
+  created_at: string;
 }): BookCsvRow {
   return {
     '书名': b.title,
@@ -45,8 +47,10 @@ export function exportBookToRow(b: {
     '豆瓣链接': b.douban_url ?? '',
     '评分': b.rating ?? '',
     '状态': statusLabel[b.status] ?? b.status,
+    '收藏': b.favorite ? '是' : '',
     '分类': b.category_name ?? '',
     '标签': b.tags.join(','),
+    '录入时间': b.created_at ?? '',
   };
 }
 

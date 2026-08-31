@@ -16,8 +16,10 @@ export const BOOK_COLUMNS = [
   '豆瓣链接',
   '评分',
   '状态',
+  '收藏',
   '分类',
   '标签',
+  '录入时间',
 ] as const;
 
 export type BookCsvRow = Record<string, string | number | null>;
@@ -103,5 +105,6 @@ export function normalizeStatus(v: string): string | undefined {
   if (s === 'unread' || s === '未读') return 'unread';
   if (s === 'reading' || s === '在读') return 'reading';
   if (s === 'finished' || s === '已读完' || s === '已读') return 'finished';
+  if (s === 'shelved' || s === '搁置') return 'shelved';
   return undefined;
 }

@@ -1,10 +1,10 @@
 # API 接口手册
 
-- **文档版本**：v1.2
+- **文档版本**：v1.3
 - **文档状态**：草案
 - **目的和适用范围**：书单管理工具（Bookshelf）全部 HTTP 接口的路径、鉴权、请求参数、响应结构与错误约定。适用于前端联调、后端实现与测试评审。
 - **权威级别**：模块规则
-- **最后更新日期**：2026-08-19
+- **最后更新日期**：2026-08-31
 
 ## 修改记录
 
@@ -13,6 +13,7 @@
 | v1.0 | - | 2026-08-17 | 初版。auth/books/categories/tags/metadata/query/export/import/health 全接口 | gstack-lead |
 | v1.1 | - | 2026-08-17 | 评审修订：软删+回收站接口(3.5-3.8)、列表 trash 参数与排序枚举、book 提交字段与 tags 按名 upsert、AI 过滤 JSON schema+写日志、导出不含回收站、分类/标签 count 仅计在库 | gstack-lead |
 | v1.2 | 0.1.0 | 2026-08-19 | 新增 6A 节：AI Agent（Bearer Key）端点约定与 `POST /api/agent/books/metadata/fetch` 抓取端点 | gstack-lead |
+| v1.3 | - | 2026-08-31 | 书籍支持 `shelved` 状态（4 态）与 `favorite` 收藏（0/1）；列表新增 `favorite=1` 过滤；Book 结构含 `favorite`；创建可传 `favorite`/`created_at`（导入保留录入时间）；CSV 导出/导入新增「收藏」「录入时间」列；Agent 过滤 JSON 支持 shelved | gstack-lead |
 
 ---
 
@@ -51,14 +52,14 @@
 
 ### 3.1 GET /api/books
 - 鉴权：登录
-- 查询：`status`(`unread|reading|finished`)、`category_id`(int)、`tag`(string)、`q`(string 关键词)、`sort`(`updated_desc|updated_asc|title_asc|title_desc|rating_desc`)、`trash`(`0|1`，默认 0，置 1 仅列回收站)、`limit`、`offset`
+- 查询：`status`(`unread|reading|finished|shelved`)、`favorite`(`1` 仅收藏)、`category_id`(int)、`tag`(string)、`q`(string 关键词)、`sort`(`updated_desc|updated_asc|title_asc|title_desc|rating_desc`)、`trash`(`0|1`，默认 0，置 1 仅列回收站)、`limit`、`offset`
 - 默认排除软删（`deleted_at IS NULL`）；`trash=1` 时仅列回收站并按 `deleted_at DESC`。
 - 成功 `200`：`{ "data": { "items": [Book], "total": 42 } }`
-- Book：`{ "id","title","author","publisher","isbn","description","cover_url","douban_url","rating","status","category_id","category_name","category_color","tags":["..."],"source","created_at","updated_at" }`
+- Book：`{ "id","title","author","publisher","isbn","description","cover_url","douban_url","rating","status","favorite","category_id","category_name","category_color","tags":["..."],"source","created_at","updated_at" }`
 
 ### 3.2 POST /api/books
 - 鉴权：登录
-- 请求（至少 `title`）：`{ "title","author","translator","publisher","publish_year","page_count","original_title","isbn","description","cover_url","douban_url","rating","status":"unread","category_id","tags":["..."] }`（`category_id` 为选中的分类 id；`tags` 为 name 数组，服务端按名 upsert；状态切到"在读/读完"时服务端写 `started_at`/`finished_at`）。
+- 请求（至少 `title`）：`{ "title","author","translator","publisher","publish_year","page_count","original_title","isbn","description","cover_url","douban_url","rating","status":"unread","favorite":0,"category_id","tags":["..."] }`（`category_id` 为选中的分类 id；`tags` 为 name 数组，服务端按名 upsert；状态切到"在读/读完"时服务端写 `started_at`/`finished_at`；`favorite` 0/1；`created_at` 可选，传入时保留该录入时间，缺省为当前时间）。
 - 成功 `201`：`{ "data": Book }`；校验失败 `400`。
 
 ### 3.3 GET /api/books/:id
@@ -148,7 +149,7 @@
 - 鉴权：登录
 - 请求：`{ "question": "我想看今年上半年读完的科幻书" }`
 - 处理：服务端用 `AI_BASE_URL`+`AI_API_KEY` 调 LLM（OpenAI 兼容）→ LLM 返回过滤条件 JSON → 应用参数化只读查询（**默认 `deleted_at IS NULL`**）。
-- 过滤 JSON 结构（LLM 产出、应用校验后用）：`{ "status"?: "unread|reading|finished", "category_id"?: int, "tags"?: string[], "authorContains"?: string, "titleContains"?: string, "finishedAfter"?: "YYYY-MM-DD", "finishedBefore"?: "YYYY-MM-DD" }`（日期范围作用于 `finished_at`；无对应时间字段时退化为 `updated_at` 代理）。
+- 过滤 JSON 结构（LLM 产出、应用校验后用）：`{ "status"?: "unread|reading|finished|shelved", "category_id"?: int, "tags"?: string[], "authorContains"?: string, "titleContains"?: string, "finishedAfter"?: "YYYY-MM-DD", "finishedBefore"?: "YYYY-MM-DD" }`（日期范围作用于 `finished_at`；无对应时间字段时退化为 `updated_at` 代理）。
 - 成功 `200`：`{ "data": { "items": [Book], "filter": { "status":"finished", "tags":["科幻"] }, "row_count": 5 } }`
 - **每次查询后写 `ai_query_log`**（query_text / filter_json / row_count / ip / ok）。
 - 失败 `400`（LLM/解析异常）或 `500`。**仅只读，绝不返回写操作。**
@@ -159,7 +160,7 @@
 - 鉴权：登录
 - 查询：`format`(`json|csv`)、`status`、`category_id`、`tag`、`q`（与列表同筛选，缺省全量）
 - 成功 `200`：`Content-Disposition: attachment`；JSON 为书籍数组，CSV 为表头 + 行。**默认不含回收站（`deleted_at IS NULL`）。**
-- 与导入互逆（字段一一对应）：导出含 `category_name` 与 `tags`（name 数组），导入按名复用。
+- 与导入互逆（字段一一对应）：导出含 `category_name`、`tags`（name 数组）、`收藏`（是/否）与 `录入时间`（`YYYY-MM-DD HH:MM:SS`），导入按名复用，`录入时间` 缺省时用导入时的系统时间。
 
 ## 9. 导入（import）
 

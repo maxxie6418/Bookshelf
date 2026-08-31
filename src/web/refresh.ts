@@ -6,6 +6,8 @@ import { toast } from './ui';
 
 // 列表每页条数；翻页时 main 查询带 limit/offset，避免超过该数量被硬截断
 export const PAGE_SIZE = 60;
+// 侧栏统计用全量上限；服务端默认 limit=100，全量统计需显式传大到足以覆盖全部藏书
+const ALL_LIMIT = 1000;
 
 export async function refresh(resetPage = true) {
   if (resetPage) setState({ page: 1 });
@@ -13,7 +15,7 @@ export async function refresh(resetPage = true) {
   setState({ loading: true });
   try {
     const mainReq = api.listBooks({ ...f, limit: PAGE_SIZE, offset: (state.page - 1) * PAGE_SIZE });
-    const allReq = state.viewMode !== 'trash' ? api.listBooks({}) : null;
+    const allReq = state.viewMode !== 'trash' ? api.listBooks({ limit: ALL_LIMIT }) : null;
     const [res, allRes] = await Promise.all([
       mainReq,
       allReq,

@@ -3,6 +3,7 @@ import { api } from '../api';
 import { setState, state } from '../state';
 import { h, toast, modal, iconTrash, iconCopy, confirmDialog } from '../ui';
 import { renderImportExportButtons } from './import-export';
+import { renderTaxonomyManage } from './manage-taxonomy';
 import { refresh } from '../refresh';
 
 const inputCls = 'w-full px-3.5 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 placeholder:text-[var(--text-muted)] transition-colors';
@@ -258,6 +259,27 @@ async function renderAgentKeysSection(container: HTMLElement) {
   await refresh();
 }
 
+// 分类与标签管理：独立弹窗页面，复用侧栏内联管理组件（新增/改名/删除）
+export function openTaxonomySettings() {
+  const catBox = h('div', { class: 'space-y-0.5' });
+  const tagBox = h('div', { class: 'space-y-0.5' });
+  renderTaxonomyManage('category', catBox);
+  renderTaxonomyManage('tag', tagBox);
+  const content = h('div', { class: 'space-y-6' },
+    h('div', {},
+      h('h4', { class: 'text-sm font-medium text-[var(--text-primary)] mb-1.5' }, '分类'),
+      h('p', { class: 'text-xs text-[var(--text-secondary)] mb-2' }, '分类用于筛选书籍；删除后关联书籍变为未分类。'),
+      catBox,
+    ),
+    h('div', {},
+      h('h4', { class: 'text-sm font-medium text-[var(--text-primary)] mb-1.5' }, '标签'),
+      h('p', { class: 'text-xs text-[var(--text-secondary)] mb-2' }, '标签用于筛选书籍；删除后从关联书籍上移除。'),
+      tagBox,
+    ),
+  );
+  modal('分类与标签管理', content);
+}
+
 export function openAgentSettings() {
   const wrap = h('div', {});
   const content = h('div', { class: 'space-y-5' },
@@ -280,8 +302,13 @@ export function openSettings() {
     void refresh();
   };
 
-  const dataRow = h('div', { class: 'flex items-center gap-2' },
+  const dataRow = h('div', { class: 'flex items-center gap-2 flex-wrap' },
     renderImportExportButtons(),
+    h('button', {
+      class: 'inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-[var(--border-default)] text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] transition-colors',
+      title: '管理分类与标签（新增 / 改名 / 删除）',
+      onclick: openTaxonomySettings,
+    }, '分类/标签'),
     h('button', {
       class: 'inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-[var(--border-default)] text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] transition-colors',
       title: '回收站（管理已删除的书籍）',

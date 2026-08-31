@@ -24,7 +24,8 @@ export interface Book {
   cover_url: string | null;
   douban_url: string | null;
   rating: number | null;
-  status: 'unread' | 'reading' | 'finished';
+  status: 'unread' | 'reading' | 'finished' | 'shelved';
+  favorite: number;
   category_id: number | null;
   category_name: string | null;
   category_color: string | null;
@@ -57,6 +58,7 @@ export interface BookListResult {
 
 export interface Filters {
   status?: string;
+  favorite?: boolean;
   categoryId?: number;
   tag?: string;
   q?: string;

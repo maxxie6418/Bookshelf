@@ -18,9 +18,11 @@ export interface BookInput {
   cover_url?: string | null;
   douban_url?: string | null;
   rating?: number | null;
-  status?: 'unread' | 'reading' | 'finished';
+  status?: 'unread' | 'reading' | 'finished' | 'shelved';
+  favorite?: number;
   category_id?: number | null;
   source?: string;
+  created_at?: string | null;
   tags?: string[];
 }
 
@@ -41,6 +43,7 @@ export interface BookRow {
   douban_url: string | null;
   rating: number | null;
   status: string;
+  favorite: number;
   category_id: number | null;
   category_name: string | null;
   category_color: string | null;
@@ -59,6 +62,7 @@ export interface BookListItem extends BookRow {
 
 export interface ListQuery {
   status?: string;
+  favorite?: boolean;
   categoryId?: number;
   tag?: string;
   q?: string;
@@ -84,7 +88,7 @@ const SORT_MAP: Record<string, string> = {
   rating_desc: 'b.rating DESC, b.id DESC',
 };
 
-const VALID_STATUS = ['unread', 'reading', 'finished'];
+const VALID_STATUS = ['unread', 'reading', 'finished', 'shelved'];
 
 function nowUtc(): string {
   return new Date().toISOString().slice(0, 19).replace('T', ' ');
@@ -113,6 +117,9 @@ export async function listBooks(db: D1Database, q: ListQuery) {
   if (q.status && VALID_STATUS.includes(q.status)) {
     where.push('b.status = ?');
     params.push(q.status);
+  }
+  if (q.favorite) {
+    where.push('b.favorite = 1');
   }
   if (q.categoryId != null) {
     where.push('b.category_id = ?');
@@ -206,9 +213,9 @@ export async function createBook(db: D1Database, input: BookInput) {
     .prepare(
       `INSERT INTO books (
         title, author, translator, publisher, publish_year, page_count, original_title,
-        isbn, description, notes, reason, cover_url, douban_url, rating, status, category_id, sort_order,
-        source, started_at, finished_at, created_at, updated_at
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,?,?,?, datetime('now'), datetime('now'))`,
+        isbn, description, notes, reason, cover_url, douban_url, rating, status, favorite,
+        category_id, sort_order, source, started_at, finished_at, created_at, updated_at
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,?,?,?, COALESCE(?, datetime('now')), datetime('now'))`,
     )
     .bind(
       input.title,
@@ -226,10 +233,12 @@ export async function createBook(db: D1Database, input: BookInput) {
       input.douban_url ?? null,
       input.rating ?? null,
       status,
+      input.favorite ?? 0,
       input.category_id ?? null,
       input.source ?? 'manual',
       times.started_at,
       times.finished_at,
+      input.created_at ?? null,
     )
     .run();
   const id = Number(res.meta.last_row_id);
@@ -281,6 +290,7 @@ export async function updateBook(db: D1Database, id: number, input: Partial<Book
   if (input.cover_url !== undefined) push('cover_url', input.cover_url);
   if (input.douban_url !== undefined) push('douban_url', input.douban_url);
   if (input.rating !== undefined) push('rating', input.rating);
+  if (input.favorite !== undefined) push('favorite', input.favorite);
   if (input.status !== undefined) {
     push('status', input.status);
     push('started_at', started_at);

@@ -2,17 +2,18 @@
 import { api } from '../api';
 import { setState, state } from '../state';
 import type { Book } from '../types';
-import { h, toast, renderCoverPlaceholder, renderStars, iconList, iconGrid, iconEdit, iconPlus, iconBookOpen } from '../ui';
+import { h, toast, renderCoverPlaceholder, renderStars, iconList, iconGrid, iconEdit, iconPlus, iconBookOpen, iconStar } from '../ui';
 import { renderDrawer } from './detail-drawer';
 import { openBookForm } from './book-form';
 import { refresh, PAGE_SIZE } from '../refresh';
 
-const STATUS_LABEL: Record<string, string> = { unread: '未读', reading: '在读', finished: '读完' };
+const STATUS_LABEL: Record<string, string> = { unread: '未读', reading: '在读', finished: '读完', shelved: '搁置' };
 
 const STATUS_META: Record<string, { label: string; dot: string; bg: string; text: string }> = {
   unread:   { label: '未读',   dot: 'bg-[var(--text-muted)]',                       bg: 'bg-[var(--bg-surface-hover)]',              text: 'text-[var(--text-secondary)]' },
   reading:  { label: '在读',   dot: 'bg-[var(--accent)] status-reading-dot',       bg: 'bg-[var(--accent)]/10',                     text: 'text-[var(--accent)]' },
   finished: { label: '已读完', dot: 'bg-[var(--accent)]',                            bg: 'bg-[var(--bg-surface-hover)]',              text: 'text-[var(--text-secondary)]' },
+  shelved:  { label: '搁置',   dot: 'bg-[var(--text-muted)]/50',                     bg: 'bg-[var(--bg-surface-hover)]',              text: 'text-[var(--text-secondary)]' },
 };
 
 function coverEl(b: Book, size: 'grid' | 'table' = 'grid'): HTMLElement {
@@ -37,6 +38,17 @@ async function quickStatus(b: Book, status: string) {
   try {
     await api.updateBook(b.id, { status: status as Book['status'] });
     toast('状态已更新');
+    await refresh();
+  } catch (e) {
+    toast((e as Error).message, 'error');
+  }
+}
+
+// 快捷收藏/取消收藏
+export async function quickFavorite(b: Book) {
+  try {
+    await api.updateBook(b.id, { favorite: b.favorite ? 0 : 1 });
+    toast(b.favorite ? '已取消收藏' : '已收藏');
     await refresh();
   } catch (e) {
     toast((e as Error).message, 'error');
@@ -83,11 +95,12 @@ export function renderBookList(container: HTMLElement) {
 
   // 当前视图标题
   const viewTitle = getViewTitle();
-  const statusButtons: { value: 'all' | 'unread' | 'reading' | 'finished'; label: string }[] = [
+  const statusButtons: { value: 'all' | 'unread' | 'reading' | 'finished' | 'shelved'; label: string }[] = [
     { value: 'all', label: '全部' },
     { value: 'unread', label: '未读' },
     { value: 'reading', label: '在读' },
     { value: 'finished', label: '读完' },
+    { value: 'shelved', label: '搁置' },
   ];
   const statusGroup = h('div', { class: 'hidden md:flex items-center gap-1 bg-[var(--bg-page)] rounded-lg p-0.5 border border-[var(--border-default)]' });
   for (const s of statusButtons) {
@@ -105,6 +118,20 @@ export function renderBookList(container: HTMLElement) {
     }, s.label));
   }
 
+  // 收藏过滤：独立按钮（不与状态按钮混排），仅收藏时点亮星标
+  const favActive = !!state.filters.favorite;
+  const favBtn = h('button', {
+    class: 'hidden md:inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-sm font-medium border transition-all shrink-0 ' +
+      (favActive
+        ? 'border-[var(--accent)] text-[var(--accent)] bg-[var(--accent)]/10 shadow-sm'
+        : 'border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--accent)] hover:border-[var(--accent)]/40'),
+    title: favActive ? '取消只看收藏' : '只看收藏',
+    onclick: () => {
+      setState({ filters: { ...state.filters, favorite: favActive ? undefined : true } });
+      void refresh();
+    },
+  }, iconStar(15), '收藏');
+
   main.append(
     // 列表头栏
     h('div', { class: 'sticky top-16 z-30 bg-[var(--bg-page)]/80 backdrop-blur-lg border-b border-[var(--border-default)] -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-3 mb-4' },
@@ -113,11 +140,13 @@ export function renderBookList(container: HTMLElement) {
           h('h2', { class: 'text-lg font-semibold font-display text-[var(--text-primary)] whitespace-nowrap' }, viewTitle),
           h('span', { class: 'text-sm text-[var(--text-muted)] whitespace-nowrap' }, `${state.total} 本`),
           statusGroup,
+          favBtn,
         ),
         h('div', { class: 'flex items-center gap-2' },
           h('span', { class: 'text-xs text-[var(--text-muted)] hidden sm:inline' }, '排序：'),
           sortSel,
           viewToggle,
+          h('div', { class: 'w-px h-6 mx-1 bg-[var(--border-subtle)] hidden sm:block' }),
           addBtn,
         ),
       ),
@@ -146,15 +175,16 @@ function getViewTitle(): string {
     if (cat) return cat.name;
   }
   if (f.status) {
-    const map: Record<string, string> = { unread: '未读书籍', reading: '正在阅读', finished: '已读完' };
+    const map: Record<string, string> = { unread: '未读书籍', reading: '正在阅读', finished: '已读完', shelved: '搁置中' };
     return map[f.status] ?? '全部书籍';
   }
+  if (f.favorite) return '我的收藏';
   return '全部书籍';
 }
 
 function hasActiveFilters(): boolean {
   const f = state.filters;
-  return !!(f.status || f.categoryId || f.tag || f.q);
+  return !!(f.status || f.favorite || f.categoryId || f.tag || f.q);
 }
 
 function clearFilters() {
@@ -329,11 +359,18 @@ function renderTable(): HTMLElement {
           : '',
       ),
       h('td', { class: 'px-4 py-2' }, renderStars(b.rating)),
-      h('td', { class: 'px-4 py-2 text-right' },
-        h('button', {
-          class: 'p-1.5 rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors text-[var(--text-muted)] hover:text-[var(--text-secondary)]',
-          onclick: (e: Event) => { e.stopPropagation(); openBookForm(b); },
-        }, iconEdit(18)),
+      h('td', { class: 'px-4 py-2 text-right whitespace-nowrap' },
+        h('div', { class: 'inline-flex items-center gap-1' },
+          h('button', {
+            class: 'p-1.5 rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors ' + (b.favorite ? 'text-[var(--accent)]' : 'text-[var(--text-muted)] hover:text-[var(--accent)]'),
+            title: b.favorite ? '取消收藏' : '收藏',
+            onclick: (e: Event) => { e.stopPropagation(); void quickFavorite(b); },
+          }, iconStar(18)),
+          h('button', {
+            class: 'p-1.5 rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors text-[var(--text-muted)] hover:text-[var(--text-secondary)]',
+            onclick: (e: Event) => { e.stopPropagation(); openBookForm(b); },
+          }, iconEdit(18)),
+        ),
       ),
     );
     if (!isLast) {
@@ -360,6 +397,12 @@ function renderGrid(): HTMLElement {
         b.status === 'reading'
           ? h('div', { class: 'absolute top-2 right-2 w-3 h-3 rounded-full bg-[var(--accent)] shadow-lg shadow-[var(--accent)]/50 status-reading-dot border-2 border-[var(--bg-surface)]' })
           : null,
+        h('button', {
+          class: 'absolute top-2 left-2 z-10 p-1.5 rounded-full bg-[var(--bg-surface)]/90 backdrop-blur-sm shadow-sm border transition-all ' +
+            (b.favorite ? 'text-[var(--accent)] border-[var(--accent)]/50' : 'text-[var(--text-muted)] border-[var(--border-default)] opacity-0 group-hover:opacity-100 hover:text-[var(--accent)]'),
+          title: b.favorite ? '取消收藏' : '收藏',
+          onclick: (e: Event) => { e.stopPropagation(); void quickFavorite(b); },
+        }, iconStar(16)),
         h('div', { class: 'absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors' }),
       ),
       h('div', { class: 'px-1.5 pb-1.5 pt-2 space-y-1' },

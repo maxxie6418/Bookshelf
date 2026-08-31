@@ -44,6 +44,7 @@ export interface EditForm {
     tags: HTMLInputElement;
     statusSel: HTMLSelectElement;
     catSel: HTMLSelectElement;
+    favorite: HTMLInputElement;
   };
   fetchBar: HTMLElement;
   fetchBtn: HTMLButtonElement;
@@ -75,11 +76,13 @@ export function createBookEditForm(book?: Book, opts: { fetchLabel?: string } = 
     tags: h('input', { class: inputCls, value: book?.tags?.join(', ') ?? '', placeholder: '标签（逗号分隔）' }),
     statusSel: h('select', { class: inputCls }),
     catSel: h('select', { class: inputCls }),
+    favorite: h('input', { type: 'checkbox', class: 'w-4 h-4 rounded accent-[var(--accent)]' }),
   };
 
-  for (const [v, label] of [['unread', '未读'], ['reading', '在读'], ['finished', '读完']] as const) {
+  for (const [v, label] of [['unread', '未读'], ['reading', '在读'], ['finished', '读完'], ['shelved', '搁置']] as const) {
     els.statusSel.append(h('option', { value: v, selected: (book?.status ?? 'unread') === v ? '' : null }, label));
   }
+  els.favorite.checked = !!book?.favorite;
   els.catSel.append(h('option', { value: '' }, '（无分类）'));
   for (const c of state.categories) {
     els.catSel.append(h('option', { value: String(c.id), selected: book?.category_id === c.id ? '' : null }, c.name));
@@ -149,6 +152,7 @@ export function createBookEditForm(book?: Book, opts: { fetchLabel?: string } = 
       douban_url: els.doubanUrl.value.trim() || null,
       rating: els.rating.value ? Number(els.rating.value) : null,
       status: els.statusSel.value,
+      favorite: els.favorite.checked ? 1 : 0,
       category_id: els.catSel.value ? Number(els.catSel.value) : null,
       tags: els.tags.value.split(/[,，]/).map((s) => s.trim()).filter(Boolean),
     };

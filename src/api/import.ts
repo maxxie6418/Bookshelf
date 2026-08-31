@@ -31,8 +31,10 @@ export interface PreparedBook {
   douban_url: string | null;
   rating: number | null;
   status: string;
+  favorite: number;
   category: string | null;
   tags: string[];
+  created_at: string | null;
 }
 
 function num(s: string | undefined): number | null {
@@ -58,8 +60,10 @@ function rowToPrepared(r: Record<string, string>): PreparedBook {
     douban_url: r['豆瓣链接']?.trim() || null,
     rating: num(r['评分']),
     status: normalizeStatus(r['状态'] ?? '') ?? 'unread',
+    favorite: ['是', '1', 'true', 'TRUE'].includes(r['收藏']?.trim() ?? '') ? 1 : 0,
     category: r['分类']?.trim() || null,
     tags: (r['标签'] ?? '').split(/[,，]/).map((s) => s.trim()).filter(Boolean),
+    created_at: r['录入时间']?.trim() || null,
   };
 }
 
@@ -159,9 +163,11 @@ importRoutes.post('/books/batch', async (c) => {
       douban_url: imp.douban_url,
       rating: imp.rating,
       status: imp.status as BookInput['status'],
+      favorite: imp.favorite,
       category_id: categoryId,
       tags: imp.tags,
       source: 'manual',
+      created_at: imp.created_at || null,
     };
     await createBook(c.env.DB, input);
     created++;

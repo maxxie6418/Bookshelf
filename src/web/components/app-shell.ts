@@ -74,7 +74,8 @@ export function mountAppShell(root: HTMLElement) {
   );
 
   // ---------- 侧栏 / 主区 ----------
-  const sidebarRoot = h('aside', { class: 'w-60 shrink-0 border-r border-[var(--border-default)] p-5 overflow-y-auto hidden md:flex md:flex-col' });
+  // 侧栏固定一屏高度：sticky 跟随顶栏、self-start 不随列表内容拉伸，内部分类/标签区域独立滚动
+  const sidebarRoot = h('aside', { class: 'w-60 shrink-0 border-r border-[var(--border-default)] p-5 overflow-y-auto hidden md:flex md:flex-col sticky top-16 self-start h-[calc(100vh-64px)]' });
   const viewRoot = h('main', { class: 'flex-1 min-w-0' });
   const toastRoot = h('div', { id: 'toast-root', class: 'fixed bottom-4 right-4 z-[60] space-y-2 pointer-events-none' });
 

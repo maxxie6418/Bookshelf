@@ -37,7 +37,8 @@ const bookSchema = z.object({
   cover_url: z.string().nullable().optional(),
   douban_url: z.string().nullable().optional(),
   rating: z.number().nullable().optional(),
-  status: z.enum(['unread', 'reading', 'finished']).optional(),
+  status: z.enum(['unread', 'reading', 'finished', 'shelved']).optional(),
+  favorite: z.union([z.literal(0), z.literal(1)]).optional(),
   category_id: z.number().int().nullable().optional(),
   tags: z.array(z.string()).optional(),
 });
@@ -49,7 +50,7 @@ const fetchSchema = z.object({
   isbn: z.string().optional(),
 });
 
-const VALID_STATUS = ['unread', 'reading', 'finished'];
+const VALID_STATUS = ['unread', 'reading', 'finished', 'shelved'];
 const VALID_SORTS = ['updated_desc', 'updated_asc', 'title_asc', 'title_desc', 'rating_desc'];
 
 function err(c: { json: (v: unknown, s?: number) => Response }, code: string, message: string, status = 400): Response {
@@ -73,6 +74,7 @@ agentRoutes.get('/books', async (c) => {
 
   const data = await books.listBooks(c.env.DB, {
     status,
+    favorite: q.favorite === '1',
     categoryId: Number.isNaN(categoryId ?? NaN) ? undefined : categoryId,
     tag: q.tag,
     q: q.q,

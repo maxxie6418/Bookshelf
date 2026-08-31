@@ -1,16 +1,17 @@
 // 详情抽屉
 import { api } from '../api';
 import type { Book } from '../types';
-import { h, toast, confirmDialog, renderCoverPlaceholder, renderStars, iconClose, iconEdit } from '../ui';
+import { h, toast, confirmDialog, renderCoverPlaceholder, renderStars, iconClose, iconEdit, iconStar } from '../ui';
 import { createBookEditForm, labelCls } from './book-edit-form';
 import { refresh, refreshSidebar } from '../refresh';
 
-const STATUS_LABEL: Record<string, string> = { unread: '未读', reading: '在读', finished: '读完' };
+const STATUS_LABEL: Record<string, string> = { unread: '未读', reading: '在读', finished: '读完', shelved: '搁置' };
 
 const STATUS_META: Record<string, { label: string; dot: string; bg: string; text: string }> = {
   unread:   { label: '未读',   dot: 'bg-[var(--text-muted)]',                 bg: 'bg-[var(--bg-surface-hover)]', text: 'text-[var(--text-secondary)]' },
   reading:  { label: '在读',   dot: 'bg-[var(--accent)] status-reading-dot', bg: 'bg-[var(--accent)]/10',        text: 'text-[var(--accent)]' },
   finished: { label: '已读完', dot: 'bg-[var(--accent)]',                      bg: 'bg-[var(--bg-surface-hover)]', text: 'text-[var(--text-secondary)]' },
+  shelved:  { label: '搁置',   dot: 'bg-[var(--text-muted)]/50',               bg: 'bg-[var(--bg-surface-hover)]', text: 'text-[var(--text-secondary)]' },
 };
 
 function field(label: string, value: string | number | null | undefined): HTMLElement {
@@ -178,6 +179,7 @@ export function renderDrawer(book: Book) {
           field('ISBN', current.isbn),
           field('页数', current.page_count != null ? `${current.page_count} 页` : null),
           fieldLink('豆瓣链接', current.douban_url),
+          field('录入时间', current.created_at),
         ),
         h('div', { class: 'mt-3 pt-3 border-t border-[var(--border-subtle)]' },
           h('div', { class: 'text-xs font-medium text-[var(--text-muted)] mb-1.5' }, '简介'),
@@ -203,27 +205,48 @@ export function renderDrawer(book: Book) {
     );
   }
 
-  // 底部固定操作栏：展示态（移入回收站贴左下 + 关闭/编辑）
+  // 底部固定操作栏：展示态（收藏/移入回收站贴左下 + 关闭/编辑）
   function renderDisplayFooter(current: Book) {
     footer.innerHTML = '';
     footer.append(h('div', { class: 'p-4 pt-3 border-t border-[var(--border-subtle)] flex items-center justify-between gap-3' },
-      h('button', {
-        class: 'px-3 py-2 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 text-sm transition-colors',
-        title: '移入回收站',
-        onclick: async () => {
-          const ok = await confirmDialog(`把《${current.title}》移入回收站？可随时恢复。`);
-          if (!ok) return;
-          try {
-            await api.softDelete(current.id);
-            close();
-            toast('已移入回收站');
-            await refresh();
-            await refreshSidebar();
-          } catch (e) {
-            toast((e as Error).message, 'error');
-          }
-        },
-      }, '移入回收站'),
+      h('div', { class: 'flex items-center gap-2' },
+        h('button', {
+          class: 'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-colors ' +
+            (current.favorite
+              ? 'bg-[var(--accent)]/10 text-[var(--accent)] border border-[var(--accent)]/40'
+              : 'text-[var(--text-secondary)] border border-[var(--border-default)] hover:text-[var(--accent)] hover:border-[var(--accent)]/40'),
+          title: current.favorite ? '取消收藏' : '收藏',
+          onclick: async () => {
+            try {
+              await api.updateBook(current.id, { favorite: current.favorite ? 0 : 1 });
+              const updated = await api.getBook(current.id);
+              toast(current.favorite ? '已取消收藏' : '已收藏');
+              current = updated;
+              await refresh();
+              renderDisplayFooter(current);
+            } catch (e) {
+              toast((e as Error).message, 'error');
+            }
+          },
+        }, iconStar(16), current.favorite ? '已收藏' : '收藏'),
+        h('button', {
+          class: 'px-3 py-2 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 text-sm transition-colors',
+          title: '移入回收站',
+          onclick: async () => {
+            const ok = await confirmDialog(`把《${current.title}》移入回收站？可随时恢复。`);
+            if (!ok) return;
+            try {
+              await api.softDelete(current.id);
+              close();
+              toast('已移入回收站');
+              await refresh();
+              await refreshSidebar();
+            } catch (e) {
+              toast((e as Error).message, 'error');
+            }
+          },
+        }, '移入回收站'),
+      ),
       h('div', { class: 'flex gap-3' },
         h('button', { class: 'flex-1 px-4 py-2.5 border border-[var(--border-default)] rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] transition-colors', onclick: close }, '关闭'),
         h('button', { class: 'flex-1 px-4 py-2.5 bg-[var(--accent)] text-[var(--accent-text)] rounded-lg text-sm font-medium hover:bg-[var(--accent-hover)] transition-colors', onclick: () => enterEdit(current) }, '编辑'),
@@ -258,6 +281,7 @@ export function renderDrawer(book: Book) {
       editGrid2(editField('页数', els.pageCount), editField('原作名', els.originalTitle)),
       editGrid2(editField('ISBN', els.isbn), editField('评分', els.rating)),
       editGrid2(editField('状态', els.statusSel), editField('分类', els.catSel)),
+      editField('收藏', h('label', { class: 'inline-flex items-center gap-2 cursor-pointer w-fit' }, els.favorite, h('span', { class: 'text-sm text-[var(--text-secondary)]' }, '加入收藏'))),
       editField('标签', els.tags),
       editField('封面 URL', els.coverUrl),
       editField('简介', els.description),
