@@ -1,6 +1,6 @@
 # API 接口手册
 
-- **文档版本**：v1.3
+- **文档版本**：v1.4
 - **文档状态**：草案
 - **目的和适用范围**：书单管理工具（Bookshelf）全部 HTTP 接口的路径、鉴权、请求参数、响应结构与错误约定。适用于前端联调、后端实现与测试评审。
 - **权威级别**：模块规则
@@ -55,11 +55,11 @@
 - 查询：`status`(`unread|reading|finished|shelved`)、`favorite`(`1` 仅收藏)、`category_id`(int)、`tag`(string)、`q`(string 关键词)、`sort`(`updated_desc|updated_asc|title_asc|title_desc|rating_desc`)、`trash`(`0|1`，默认 0，置 1 仅列回收站)、`limit`、`offset`
 - 默认排除软删（`deleted_at IS NULL`）；`trash=1` 时仅列回收站并按 `deleted_at DESC`。
 - 成功 `200`：`{ "data": { "items": [Book], "total": 42 } }`
-- Book：`{ "id","title","author","publisher","isbn","description","cover_url","douban_url","rating","status","favorite","category_id","category_name","category_color","tags":["..."],"source","created_at","updated_at" }`
+- Book：`{ "id","title","subtitle","author","publisher","isbn","description","cover_url","douban_url","rating","status","favorite","category_id","category_name","category_color","tags":["..."],"source","created_at","updated_at" }`
 
 ### 3.2 POST /api/books
 - 鉴权：登录
-- 请求（至少 `title`）：`{ "title","author","translator","publisher","publish_year","page_count","original_title","isbn","description","cover_url","douban_url","rating","status":"unread","favorite":0,"category_id","tags":["..."] }`（`category_id` 为选中的分类 id；`tags` 为 name 数组，服务端按名 upsert；状态切到"在读/读完"时服务端写 `started_at`/`finished_at`；`favorite` 0/1；`created_at` 可选，传入时保留该录入时间，缺省为当前时间）。
+- 请求（至少 `title`）：`{ "title","subtitle","author","translator","publisher","publish_year","page_count","isbn","description","cover_url","douban_url","rating","status":"unread","favorite":0,"category_id","tags":["..."] }`（`category_id` 为选中的分类 id；`tags` 为 name 数组，服务端按名 upsert；状态切到"在读/读完"时服务端写 `started_at`/`finished_at`；`favorite` 0/1；`created_at` 可选，传入时保留该录入时间，缺省为当前时间）。
 - 成功 `201`：`{ "data": Book }`；校验失败 `400`。
 
 ### 3.3 GET /api/books/:id
@@ -127,7 +127,7 @@
 ### 6.1 POST /api/books/metadata/fetch
 - 鉴权：登录
 - 请求：`{ "url"?: "https://book.douban.com/...", "isbn"?: "9787..." }`（二选一）
-- 成功 `200`：`{ "data": { "title","author","translator","publisher","publish_year","isbn","page_count","original_title","description","cover_url","douban_rating","source":"douban|neodb|openlibrary|googlebooks|manual" } }`
+- 成功 `200`：`{ "data": { "title","subtitle","author","translator","publisher","publish_year","isbn","page_count","description","cover_url","douban_rating","source":"douban|neodb|openlibrary|googlebooks|manual" } }`
 - 说明：走兜底链（豆瓣→NeoDB→Open Library→Google Books→手动）；失败 `400` 并提示"获取链接失败，请改用粘贴文本导入"。
 
 ## 6A. AI Agent（Bearer Key）
@@ -140,7 +140,7 @@
 ### 6A.2 POST /api/agent/books/metadata/fetch
 - 鉴权：Bearer Agent Key；写限频
 - 请求：`{ "url"?: "https://book.douban.com/...", "isbn"?: "9787..." }`（二选一）
-- 成功 `200`：`{ "data": { "title","author","translator","publisher","publish_year","isbn","page_count","original_title","description","cover_url","douban_rating","douban_url","source":"douban" } }`（`cover_url` 为站内 R2 代理路径或原豆瓣图）
+- 成功 `200`：`{ "data": { "title","subtitle","author","translator","publisher","publish_year","isbn","page_count","description","cover_url","douban_rating","douban_url","source":"douban" } }`（`cover_url` 为站内 R2 代理路径或原豆瓣图）
 - 说明：供外部 AI 拿到豆瓣链接/ISBN 后抓取元数据回填，再以结果作为 `POST /api/agent/books` 的创建字段；不直接入库。失败 `400`。
 
 ## 7. AI 查询（query）
@@ -160,7 +160,7 @@
 - 鉴权：登录
 - 查询：`format`(`json|csv`)、`status`、`category_id`、`tag`、`q`（与列表同筛选，缺省全量）
 - 成功 `200`：`Content-Disposition: attachment`；JSON 为书籍数组，CSV 为表头 + 行。**默认不含回收站（`deleted_at IS NULL`）。**
-- 与导入互逆（字段一一对应）：导出含 `category_name`、`tags`（name 数组）、`收藏`（是/否）与 `录入时间`（`YYYY-MM-DD HH:MM:SS`），导入按名复用，`录入时间` 缺省时用导入时的系统时间。
+- 与导入互逆（字段一一对应）：导出含 `subtitle`（副标题）、`category_name`、`tags`（name 数组）、`收藏`（是/否）与 `录入时间`（`YYYY-MM-DD HH:MM:SS`），导入按名复用，`录入时间` 缺省时用导入时的系统时间。CSV 表头为「副标题」（旧版「原书名」表头导入仍兼容）。
 
 ## 9. 导入（import）
 
