@@ -10,7 +10,7 @@ export interface BookInput {
   publisher?: string | null;
   publish_year?: number | null;
   page_count?: number | null;
-  original_title?: string | null;
+  subtitle?: string | null;
   isbn?: string | null;
   description?: string | null;
   notes?: string | null;
@@ -34,7 +34,7 @@ export interface BookRow {
   publisher: string | null;
   publish_year: number | null;
   page_count: number | null;
-  original_title: string | null;
+  subtitle: string | null;
   isbn: string | null;
   description: string | null;
   notes: string | null;
@@ -212,7 +212,7 @@ export async function createBook(db: D1Database, input: BookInput) {
   const res = await db
     .prepare(
       `INSERT INTO books (
-        title, author, translator, publisher, publish_year, page_count, original_title,
+        title, author, translator, publisher, publish_year, page_count, subtitle,
         isbn, description, notes, reason, cover_url, douban_url, rating, status, favorite,
         category_id, sort_order, source, started_at, finished_at, created_at, updated_at
       ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,?,?,?, COALESCE(?, datetime('now')), datetime('now'))`,
@@ -224,7 +224,7 @@ export async function createBook(db: D1Database, input: BookInput) {
       input.publisher ?? null,
       input.publish_year ?? null,
       input.page_count ?? null,
-      input.original_title ?? null,
+      input.subtitle ?? null,
       input.isbn ?? null,
       input.description ?? null,
       input.notes ?? null,
@@ -282,7 +282,7 @@ export async function updateBook(db: D1Database, id: number, input: Partial<Book
   if (input.publisher !== undefined) push('publisher', input.publisher);
   if (input.publish_year !== undefined) push('publish_year', input.publish_year);
   if (input.page_count !== undefined) push('page_count', input.page_count);
-  if (input.original_title !== undefined) push('original_title', input.original_title);
+  if (input.subtitle !== undefined) push('subtitle', input.subtitle);
   if (input.isbn !== undefined) push('isbn', input.isbn);
   if (input.description !== undefined) push('description', input.description);
   if (input.notes !== undefined) push('notes', input.notes);
@@ -371,19 +371,24 @@ export async function setBookTags(db: D1Database, bookId: number, tagIds: number
 
 export async function tagsForBooks(db: D1Database, bookIds: number[]): Promise<Record<number, string[]>> {
   if (!bookIds.length) return {};
-  const placeholders = bookIds.map(() => '?').join(',');
-  const rows = await db
-    .prepare(
-      `SELECT bt.book_id AS book_id, t.name AS name
-       FROM book_tags bt JOIN tags t ON t.id = bt.tag_id
-       WHERE bt.book_id IN (${placeholders})
-       ORDER BY t.name COLLATE NOCASE`,
-    )
-    .bind(...bookIds)
-    .all<{ book_id: number; name: string }>();
   const map: Record<number, string[]> = {};
-  for (const r of rows.results) {
-    (map[r.book_id] ??= []).push(r.name);
+  // D1 单查询绑定变量数有限（约 100），书架超过该规模时按批查询，避免 "too many SQL variables"
+  const batchSize = 90;
+  for (let i = 0; i < bookIds.length; i += batchSize) {
+    const chunk = bookIds.slice(i, i + batchSize);
+    const placeholders = chunk.map(() => '?').join(',');
+    const rows = await db
+      .prepare(
+        `SELECT bt.book_id AS book_id, t.name AS name
+         FROM book_tags bt JOIN tags t ON t.id = bt.tag_id
+         WHERE bt.book_id IN (${placeholders})
+         ORDER BY t.name COLLATE NOCASE`,
+      )
+      .bind(...chunk)
+      .all<{ book_id: number; name: string }>();
+    for (const r of rows.results) {
+      (map[r.book_id] ??= []).push(r.name);
+    }
   }
   return map;
 }

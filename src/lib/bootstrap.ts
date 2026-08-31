@@ -9,6 +9,7 @@ let schemaReady = false;
 let notesColumnReady = false;
 let reasonColumnReady = false;
 let shelvedFavoriteReady = false;
+let subtitleColumnReady = false;
 
 // 幂等建表：仅当 users 表缺失时执行内置 schema（与 migrations/0000_init.sql 一致），
 // 使「Deploy to Cloudflare」等不执行迁移命令的部署方式也能自动完成建表。
@@ -57,6 +58,22 @@ async function ensureBookReasonColumn(env: Env): Promise<void> {
   reasonColumnReady = true;
 }
 
+// 幂等增量迁移：为已有 books 表补 subtitle（副标题）列（可重复执行，缺列才 ALTER）。
+// 适配已存在数据的本地/线上库；全新库直接走 schema.ts/migrations 内置 subtitle 列。
+async function ensureBookSubtitleColumn(env: Env): Promise<void> {
+  if (subtitleColumnReady) return;
+  try {
+    const cols = await env.DB.prepare('PRAGMA table_info(books)').all<{ name: string }>();
+    const hasSubtitle = cols.results?.some((c) => c.name === 'subtitle');
+    if (!hasSubtitle) {
+      await env.DB.prepare('ALTER TABLE books ADD COLUMN subtitle TEXT').run();
+    }
+  } catch {
+    // books 表不存在或其它错误时静默跳过，避免阻塞引导
+  }
+  subtitleColumnReady = true;
+}
+
 // 幂等增量迁移：重建 books 表以支持「搁置」(shelved) 状态与 favorite 收藏列。
 // SQLite 无法直接修改 CHECK 约束，需重建表；D1 在 batch 逐语句执行时 PRAGMA foreign_keys=OFF
 // 无法关闭 ON DELETE CASCADE（本地实测会级联清空 book_tags），故采用「重命名舞步」方案：
@@ -92,6 +109,7 @@ async function ensureBookShelvedFavoriteRebuild(env: Env): Promise<void> {
   publish_year INTEGER,
   page_count INTEGER,
   original_title TEXT,
+  subtitle TEXT,
   isbn TEXT,
   description TEXT,
   notes TEXT,
@@ -114,11 +132,11 @@ async function ensureBookShelvedFavoriteRebuild(env: Env): Promise<void> {
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 )`,
       `INSERT INTO books_new (
-  id, title, author, translator, publisher, publish_year, page_count, original_title,
+  id, title, author, translator, publisher, publish_year, page_count, original_title, subtitle,
   isbn, description, notes, reason, cover_url, douban_url, rating, status,
   category_id, sort_order, source, started_at, finished_at, deleted_at, created_at, updated_at
 ) SELECT
-  id, title, author, translator, publisher, publish_year, page_count, original_title,
+  id, title, author, translator, publisher, publish_year, page_count, original_title, subtitle,
   isbn, description, notes, reason, cover_url, douban_url, rating, status,
   category_id, sort_order, source, started_at, finished_at, deleted_at, created_at, updated_at
 FROM books`,
@@ -150,6 +168,7 @@ export async function ensureAdmin(env: Env): Promise<void> {
   await ensureSchema(env);
   await ensureBookNotesColumn(env);
   await ensureBookReasonColumn(env);
+  await ensureBookSubtitleColumn(env);
   await ensureBookShelvedFavoriteRebuild(env);
   if (seeded) return;
   const row = await env.DB.prepare('SELECT COUNT(*) AS c FROM users').first<{ c: number }>();

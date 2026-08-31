@@ -14,7 +14,7 @@ const bookSchema = z.object({
   publisher: z.string().nullable().optional(),
   publish_year: z.number().int().nullable().optional(),
   page_count: z.number().int().nullable().optional(),
-  original_title: z.string().nullable().optional(),
+  subtitle: z.string().nullable().optional(),
   isbn: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
   notes: z.string().max(2000, '记录最多 2000 字').nullable().optional(),

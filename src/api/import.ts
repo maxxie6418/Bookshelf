@@ -22,7 +22,7 @@ export interface PreparedBook {
   publisher: string | null;
   publish_year: number | null;
   page_count: number | null;
-  original_title: string | null;
+  subtitle: string | null;
   isbn: string | null;
   description: string | null;
   notes: string | null;
@@ -51,7 +51,7 @@ function rowToPrepared(r: Record<string, string>): PreparedBook {
     publisher: r['出版社']?.trim() || null,
     publish_year: num(r['出版年份']),
     page_count: num(r['页数']),
-    original_title: r['原书名']?.trim() || null,
+    subtitle: (r['副标题'] ?? r['原书名'])?.trim() || null,
     isbn: r['ISBN']?.trim() || null,
     description: r['简介']?.trim() || null,
     notes: r['记录']?.trim() || null,
@@ -154,7 +154,7 @@ importRoutes.post('/books/batch', async (c) => {
       publisher: imp.publisher,
       publish_year: imp.publish_year,
       page_count: imp.page_count,
-      original_title: imp.original_title,
+      subtitle: imp.subtitle,
       isbn: imp.isbn,
       description: imp.description,
       notes: imp.notes,

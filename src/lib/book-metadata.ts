@@ -9,7 +9,7 @@ export interface BookMetadata {
   publisher: string | null;
   publish_year: number | null;
   page_count: number | null;
-  original_title: string | null;
+  subtitle: string | null;
   isbn: string | null;
   description: string | null;
   cover_url: string | null;
@@ -45,7 +45,7 @@ export function parseDoubanHtml(html: string): Omit<BookMetadata, 'source'> {
   };
 
   // 书名优先取 h1 的 property 属性值，避免带上 “(豆瓣)” 后缀
-  const title =
+  let title =
     txt(/<h1[^>]*>\s*<span[^>]*property="v:itemreviewed"[^>]*>\s*([^<]+?)\s*<\/span>/i) ??
     txt(/<h1[^>]*>\s*<span[^>]*>([^<]+?)<\/span>/i) ??
     (txt(/<title>([^<]*?)<\/title>/i) ?? '').replace(/\s*\(豆瓣\)\s*$/i, '');
@@ -56,8 +56,17 @@ export function parseDoubanHtml(html: string): Omit<BookMetadata, 'source'> {
   // 出版年可能是 “1991-2” 这类区间，取第一个 4 位年份
   const publishYear = (info('出版年') ?? '').match(/\d{4}/)?.[0] ?? null;
   const pageCount = info('页数');
-  const originalTitle = info('原作名');
   const isbn = info('ISBN');
+
+  // 副标题（书名下的一句话简介）：优先取豆瓣信息区“副标题”，否则从书名冒号（：或 :）后拆分
+  let subtitle = info('副标题');
+  if (!subtitle && title) {
+    const parts = title.match(/^(.+?)\s*[:：]\s*(.+)$/);
+    if (parts) {
+      title = parts[1];
+      subtitle = parts[2];
+    }
+  }
 
   const coverUrl =
     txt(/<a[^>]+class="[^"]*nbg[^"]*"[^>]*>\s*<img[^>]+src="([^"]+)"/i) ??
@@ -73,7 +82,7 @@ export function parseDoubanHtml(html: string): Omit<BookMetadata, 'source'> {
     publisher: clean(publisher),
     publish_year: publishYear ? Number(publishYear) : null,
     page_count: pageCount ? Number(pageCount.replace(/\D/g, '')) : null,
-    original_title: clean(originalTitle),
+    subtitle: clean(subtitle),
     isbn: isbn ? isbn.replace(/[^0-9Xx]/g, '') : null,
     description,
     // 豆瓣封面统一取较大图（/s|m/ → /l/）

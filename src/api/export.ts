@@ -19,7 +19,7 @@ export function exportBookToRow(b: {
   publisher: string | null;
   publish_year: number | null;
   page_count: number | null;
-  original_title: string | null;
+  subtitle: string | null;
   isbn: string | null;
   description: string | null;
   notes: string | null;
@@ -39,7 +39,7 @@ export function exportBookToRow(b: {
     '出版社': b.publisher ?? '',
     '出版年份': b.publish_year ?? '',
     '页数': b.page_count ?? '',
-    '原书名': b.original_title ?? '',
+    '副标题': b.subtitle ?? '',
     'ISBN': b.isbn ?? '',
     '简介': b.description ?? '',
     '记录': b.notes ?? '',
