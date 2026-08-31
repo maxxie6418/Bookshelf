@@ -58,8 +58,13 @@ export function parseDoubanHtml(html: string): Omit<BookMetadata, 'source'> {
   const pageCount = info('页数');
   const isbn = info('ISBN');
 
-  // 副标题（书名下的一句话简介）：优先取豆瓣信息区“副标题”，否则从书名冒号（：或 :）后拆分
-  let subtitle = info('副标题');
+  // 副标题（书名下的一句话简介）：
+  // 优先豆瓣标准结构 <h2 class="subtitle"><span property="v:subtitle">…</span></h2>；
+  // 退回信息区“副标题”行；再退回书名冒号（：或 :）后拆分
+  let subtitle =
+    txt(/<span[^>]*property="v:subtitle"[^>]*>\s*([^<]+?)\s*<\/span>/i) ??
+    txt(/<h2[^>]*class="[^"]*subtitle[^"]*"[^>]*>\s*([^<]+?)\s*<\/h2>/i) ??
+    info('副标题');
   if (!subtitle && title) {
     const parts = title.match(/^(.+?)\s*[:：]\s*(.+)$/);
     if (parts) {

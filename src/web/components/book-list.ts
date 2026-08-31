@@ -456,6 +456,7 @@ function renderGrid(): HTMLElement {
       ),
       h('div', { class: 'px-1.5 pb-1.5 pt-2 space-y-1' },
         h('h3', { class: 'font-display font-semibold text-[13px] leading-tight line-clamp-1 text-[var(--text-primary)] group-hover:text-[var(--accent)] transition-colors' }, b.title),
+        b.subtitle ? h('p', { class: 'text-[11px] text-[var(--text-muted)] leading-tight line-clamp-1 group-hover:text-[var(--accent)]/70 transition-colors' }, b.subtitle) : null,
         h('p', { class: 'text-[11px] text-[var(--text-secondary)] line-clamp-1' }, b.author ?? ''),
         h('div', { class: 'flex items-center gap-2 pt-0.5' },
           statusBadge(b),
