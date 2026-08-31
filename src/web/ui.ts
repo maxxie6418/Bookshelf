@@ -40,6 +40,16 @@ export function h(
   return node as HTMLElement;
 }
 
+// 提取链接主域名（如 https://book.douban.com/subject/1/ → douban.com），仅用于展示
+export function mainDomain(url: string): string {
+  try {
+    const parts = new URL(url).hostname.split('.').filter(Boolean);
+    return parts.length > 2 ? parts.slice(-2).join('.') : parts.join('.');
+  } catch {
+    return url;
+  }
+}
+
 export function toast(message: string, type: 'success' | 'error' = 'success') {
   let container = document.getElementById('toast-root');
   if (!container) {

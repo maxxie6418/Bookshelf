@@ -1,7 +1,7 @@
 // 详情抽屉
 import { api } from '../api';
 import type { Book } from '../types';
-import { h, toast, confirmDialog, renderCoverPlaceholder, renderStars, iconClose, iconEdit, iconStar } from '../ui';
+import { h, toast, confirmDialog, renderCoverPlaceholder, renderStars, iconClose, iconEdit, iconStar, mainDomain } from '../ui';
 import { createBookEditForm, labelCls } from './book-edit-form';
 import { refresh, refreshSidebar } from '../refresh';
 
@@ -28,7 +28,7 @@ function fieldLink(label: string, url: string | null | undefined): HTMLElement {
   return h('div', { class: 'text-sm' },
     h('div', { class: 'text-xs text-[var(--text-muted)] mb-1' }, label),
     has
-      ? h('a', { href: url!, target: '_blank', rel: 'noreferrer', class: 'font-medium text-[var(--accent)] hover:underline break-all' }, url)
+      ? h('a', { href: url!, target: '_blank', rel: 'noreferrer', class: 'font-medium text-[var(--accent)] hover:underline break-all', title: url }, mainDomain(url!))
       : h('div', { class: 'text-[var(--text-muted)]' }, '*'),
   );
 }

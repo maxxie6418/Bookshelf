@@ -2,7 +2,7 @@
 import { api } from '../api';
 import { setState, state } from '../state';
 import type { Book } from '../types';
-import { h, toast, renderCoverPlaceholder, renderStars, iconList, iconGrid, iconEdit, iconPlus, iconBookOpen, iconStar, iconRefresh } from '../ui';
+import { h, toast, renderCoverPlaceholder, renderStars, iconList, iconGrid, iconEdit, iconPlus, iconBookOpen, iconStar, iconRefresh, mainDomain } from '../ui';
 import { renderDrawer } from './detail-drawer';
 import { openBookForm } from './book-form';
 import { refresh, refreshSidebar, PAGE_SIZE } from '../refresh';
@@ -399,6 +399,11 @@ function renderBookRow(b: Book): HTMLTableRowElement {
         : '',
     ),
     h('td', { class: 'px-4 py-2' }, renderStars(b.rating)),
+    h('td', { class: 'px-4 py-2' },
+      b.douban_url
+        ? h('a', { href: b.douban_url, target: '_blank', rel: 'noreferrer', class: 'text-xs text-[var(--accent)] hover:underline break-all', onclick: (e: Event) => e.stopPropagation() }, mainDomain(b.douban_url))
+        : '',
+    ),
     h('td', { class: 'px-4 py-2 text-right whitespace-nowrap' }, actions),
   );
   return row;
@@ -416,6 +421,7 @@ function renderTable(): HTMLElement {
     h('th', { class: 'px-4 py-2 font-medium' }, '状态'),
     h('th', { class: 'px-4 py-2 font-medium' }, '分类'),
     h('th', { class: 'px-4 py-2 font-medium' }, '评分'),
+    h('th', { class: 'px-4 py-2 font-medium' }, '豆瓣链接'),
     h('th', { class: 'px-4 py-2 font-medium text-right' }, '操作'),
   ));
   const tbody = h('tbody');
