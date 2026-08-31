@@ -29,7 +29,11 @@ async function refreshMeta(b: Book, btn: HTMLButtonElement) {
   btn.disabled = true;
   btn.classList.add('animate-spin', 'pointer-events-none');
   try {
-    const input = b.isbn ? { isbn: b.isbn } : { url: b.douban_url ?? '' };
+    const input = b.douban_url ? { url: b.douban_url } : b.isbn ? { isbn: b.isbn } : null;
+    if (!input) {
+      toast('该书无豆瓣链接或 ISBN，无法抓取元数据', 'error');
+      return;
+    }
     const d = await api.fetchMetadata(input);
     const patch = metaToPatch(d);
     if (Object.keys(patch).length === 0) {
