@@ -32,7 +32,9 @@ export const SCHEMA_STATEMENTS: string[] = [
   douban_url TEXT,
   rating REAL,
   status TEXT NOT NULL DEFAULT 'unread'
-    CHECK (status IN ('unread','reading','finished')),
+    CHECK (status IN ('unread','reading','finished','shelved')),
+  favorite INTEGER NOT NULL DEFAULT 0
+    CHECK (favorite IN (0,1)),
   category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
   sort_order INTEGER NOT NULL DEFAULT 0,
   source TEXT NOT NULL DEFAULT 'manual'
