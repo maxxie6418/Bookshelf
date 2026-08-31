@@ -16,7 +16,7 @@ export interface BookMetadata {
   publisher: string | null;
   publish_year: number | null;
   page_count: number | null;
-  original_title: string | null;
+  subtitle: string | null;
   isbn: string | null;
   description: string | null;
   cover_url: string | null;
@@ -33,7 +33,7 @@ export interface EditForm {
     publisher: HTMLInputElement;
     publishYear: HTMLInputElement;
     pageCount: HTMLInputElement;
-    originalTitle: HTMLInputElement;
+    subtitle: HTMLInputElement;
     isbn: HTMLInputElement;
     description: HTMLTextAreaElement;
     notes: HTMLTextAreaElement;
@@ -65,7 +65,7 @@ export function createBookEditForm(book?: Book, opts: { fetchLabel?: string } = 
     publisher: h('input', { class: inputCls, value: book?.publisher ?? '', placeholder: '出版社' }),
     publishYear: h('input', { type: 'number', class: inputCls, value: book?.publish_year ?? '', placeholder: '出版年' }),
     pageCount: h('input', { type: 'number', class: inputCls, value: book?.page_count ?? '', placeholder: '页数' }),
-    originalTitle: h('input', { class: inputCls, value: book?.original_title ?? '', placeholder: '原作名' }),
+    subtitle: h('input', { class: inputCls, value: book?.subtitle ?? '', placeholder: '副标题' }),
     isbn: h('input', { class: inputCls, value: book?.isbn ?? '', placeholder: 'ISBN' }),
     description: h('textarea', { class: inputCls + ' min-h-20', placeholder: '简介' }, book?.description ?? ''),
     notes: h('textarea', { class: inputCls + ' min-h-20', maxlength: '2000', placeholder: '记录（最多 2000 字）' }, book?.notes ?? ''),
@@ -127,7 +127,7 @@ export function createBookEditForm(book?: Book, opts: { fetchLabel?: string } = 
     els.publisher.value = meta.publisher ?? '';
     els.publishYear.value = meta.publish_year != null ? String(meta.publish_year) : '';
     els.pageCount.value = meta.page_count != null ? String(meta.page_count) : '';
-    els.originalTitle.value = meta.original_title ?? '';
+    els.subtitle.value = meta.subtitle ?? '';
     els.isbn.value = meta.isbn ?? '';
     els.description.value = meta.description ?? '';
     els.coverUrl.value = meta.cover_url ?? '';
@@ -143,7 +143,7 @@ export function createBookEditForm(book?: Book, opts: { fetchLabel?: string } = 
       publisher: els.publisher.value.trim() || null,
       publish_year: els.publishYear.value ? Number(els.publishYear.value) : null,
       page_count: els.pageCount.value ? Number(els.pageCount.value) : null,
-      original_title: els.originalTitle.value.trim() || null,
+      subtitle: els.subtitle.value.trim() || null,
       isbn: els.isbn.value.trim() || null,
       description: els.description.value.trim() || null,
       notes: els.notes.value.trim() || null,

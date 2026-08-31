@@ -2,10 +2,11 @@
 import { api } from '../api';
 import { setState, state } from '../state';
 import type { Book } from '../types';
-import { h, toast, renderCoverPlaceholder, renderStars, iconList, iconGrid, iconEdit, iconPlus, iconBookOpen, iconStar } from '../ui';
+import { h, toast, renderCoverPlaceholder, renderStars, iconList, iconGrid, iconEdit, iconPlus, iconBookOpen, iconStar, iconRefresh } from '../ui';
 import { renderDrawer } from './detail-drawer';
 import { openBookForm } from './book-form';
-import { refresh, PAGE_SIZE } from '../refresh';
+import { refresh, refreshSidebar, PAGE_SIZE } from '../refresh';
+import { createInlineEditRow, metaToPatch } from './book-inline-edit';
 
 const STATUS_LABEL: Record<string, string> = { unread: '未读', reading: '在读', finished: '读完', shelved: '搁置' };
 
@@ -21,6 +22,29 @@ function coverEl(b: Book, size: 'grid' | 'table' = 'grid'): HTMLElement {
     return h('img', { src: b.cover_url, alt: b.title, class: 'w-full h-full object-cover', loading: 'lazy' });
   }
   return renderCoverPlaceholder(b, size);
+}
+
+// 一键抓取刷新元数据并直接保存（成功才写，失败不动原数据）
+async function refreshMeta(b: Book, btn: HTMLButtonElement) {
+  btn.disabled = true;
+  btn.classList.add('animate-spin', 'pointer-events-none');
+  try {
+    const input = b.isbn ? { isbn: b.isbn } : { url: b.douban_url ?? '' };
+    const d = await api.fetchMetadata(input);
+    const patch = metaToPatch(d);
+    if (Object.keys(patch).length === 0) {
+      toast('未获取到可更新的元数据', 'error');
+      return;
+    }
+    await api.updateBook(b.id, patch);
+    toast(`已刷新《${b.title}》`);
+    await Promise.all([refresh(false), refreshSidebar()]);
+  } catch (e) {
+    toast((e as Error).message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('animate-spin', 'pointer-events-none');
+  }
 }
 
 function statusBadge(b: Book): HTMLElement {
@@ -313,6 +337,69 @@ function pageBtn(label: string, enabled: boolean, onclick: () => void): HTMLElem
   }, label);
 }
 
+function renderBookRow(b: Book): HTMLTableRowElement {
+  const meta = STATUS_META[b.status] ?? STATUS_META.unread;
+  const row = h('tr', { class: 'table-row cursor-pointer', onclick: () => renderDrawer(b) });
+  const coverCell = h('td', { class: 'px-4 py-2' },
+    h('div', { class: 'w-10 h-14 rounded-md overflow-hidden shadow-sm' }, coverEl(b, 'table')),
+  );
+  const actions = h('div', { class: 'inline-flex items-center gap-1' },
+    (b.douban_url || b.isbn)
+      ? h('button', {
+          class: 'p-1.5 rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors text-[var(--text-muted)] hover:text-[var(--accent)]',
+          title: '抓取刷新元数据',
+          onclick: (e: Event) => { e.stopPropagation(); void refreshMeta(b, actions.querySelector('button') as HTMLButtonElement); },
+        }, iconRefresh(18))
+      : null,
+    h('button', {
+      class: 'p-1.5 rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors ' + (b.favorite ? 'text-[var(--accent)]' : 'text-[var(--text-muted)] hover:text-[var(--accent)]'),
+      title: b.favorite ? '取消收藏' : '收藏',
+      onclick: (e: Event) => { e.stopPropagation(); void quickFavorite(b); },
+    }, iconStar(18)),
+    h('button', {
+      class: 'p-1.5 rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors text-[var(--text-muted)] hover:text-[var(--text-secondary)]',
+      title: '行内编辑',
+      onclick: (e: Event) => {
+        e.stopPropagation();
+        const editRow = createInlineEditRow(b, {
+          onCancel: () => editRow.replaceWith(renderBookRow(b)),
+          onSaved: () => {
+            editRow.replaceWith(renderBookRow(b));
+            void refresh(false);
+            void refreshSidebar();
+          },
+        });
+        row.replaceWith(editRow);
+      },
+    }, iconEdit(18)),
+  );
+  row.append(
+    coverCell,
+    h('td', { class: 'px-4 py-2' },
+      h('div', { class: 'font-medium text-sm font-display text-[var(--text-primary)]' }, b.title),
+      b.subtitle ? h('div', { class: 'text-xs text-[var(--text-muted)] mt-0.5' }, b.subtitle) : null,
+    ),
+    h('td', { class: 'px-4 py-2 text-sm text-[var(--text-secondary)]' }, b.author ?? ''),
+    h('td', { class: 'px-4 py-2' },
+      h('span', { class: `inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${meta.bg} ${meta.text}` },
+        h('span', { class: `w-1.5 h-1.5 rounded-full ${meta.dot}` }),
+        STATUS_LABEL[b.status] ?? b.status,
+      ),
+    ),
+    h('td', { class: 'px-4 py-2' },
+      b.category_name
+        ? h('span', { class: 'inline-flex items-center gap-1.5 text-xs text-[var(--text-secondary)]' },
+            h('span', { class: 'w-2 h-2 rounded-sm', style: `background:${b.category_color ?? '#8a8274'}` }),
+            b.category_name,
+          )
+        : '',
+    ),
+    h('td', { class: 'px-4 py-2' }, renderStars(b.rating)),
+    h('td', { class: 'px-4 py-2 text-right whitespace-nowrap' }, actions),
+  );
+  return row;
+}
+
 function renderTable(): HTMLElement {
   const wrap = h('div', { class: 'bg-[var(--bg-surface)] rounded-xl border border-[var(--border-default)] overflow-hidden shadow-paper' });
   const inner = h('div', { class: 'overflow-x-auto' });
@@ -330,50 +417,8 @@ function renderTable(): HTMLElement {
   const tbody = h('tbody');
   const books = state.books;
   for (let i = 0; i < books.length; i++) {
-    const b = books[i];
-    const meta = STATUS_META[b.status] ?? STATUS_META.unread;
-    const isLast = i === books.length - 1;
-    const row = h('tr', { class: 'table-row cursor-pointer', onclick: () => renderDrawer(b) });
-    const coverCell = h('td', { class: 'px-4 py-2' },
-      h('div', { class: 'w-10 h-14 rounded-md overflow-hidden shadow-sm' }, coverEl(b, 'table')),
-    );
-    row.append(
-      coverCell,
-      h('td', { class: 'px-4 py-2' },
-        h('div', { class: 'font-medium text-sm font-display text-[var(--text-primary)]' }, b.title),
-        b.original_title ? h('div', { class: 'text-xs text-[var(--text-muted)] mt-0.5' }, b.original_title) : null,
-      ),
-      h('td', { class: 'px-4 py-2 text-sm text-[var(--text-secondary)]' }, b.author ?? ''),
-      h('td', { class: 'px-4 py-2' },
-        h('span', { class: `inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${meta.bg} ${meta.text}` },
-          h('span', { class: `w-1.5 h-1.5 rounded-full ${meta.dot}` }),
-          STATUS_LABEL[b.status] ?? b.status,
-        ),
-      ),
-      h('td', { class: 'px-4 py-2' },
-        b.category_name
-          ? h('span', { class: 'inline-flex items-center gap-1.5 text-xs text-[var(--text-secondary)]' },
-              h('span', { class: 'w-2 h-2 rounded-sm', style: `background:${b.category_color ?? '#8a8274'}` }),
-              b.category_name,
-            )
-          : '',
-      ),
-      h('td', { class: 'px-4 py-2' }, renderStars(b.rating)),
-      h('td', { class: 'px-4 py-2 text-right whitespace-nowrap' },
-        h('div', { class: 'inline-flex items-center gap-1' },
-          h('button', {
-            class: 'p-1.5 rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors ' + (b.favorite ? 'text-[var(--accent)]' : 'text-[var(--text-muted)] hover:text-[var(--accent)]'),
-            title: b.favorite ? '取消收藏' : '收藏',
-            onclick: (e: Event) => { e.stopPropagation(); void quickFavorite(b); },
-          }, iconStar(18)),
-          h('button', {
-            class: 'p-1.5 rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors text-[var(--text-muted)] hover:text-[var(--text-secondary)]',
-            onclick: (e: Event) => { e.stopPropagation(); openBookForm(b); },
-          }, iconEdit(18)),
-        ),
-      ),
-    );
-    if (!isLast) {
+    const row = renderBookRow(books[i]);
+    if (i < books.length - 1) {
       row.classList.add('border-b', 'border-[var(--border-subtle)]');
     }
     tbody.append(row);

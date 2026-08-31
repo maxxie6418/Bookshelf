@@ -29,7 +29,7 @@ export function mountAppShell(root: HTMLElement) {
   });
 
   const navbar = h('header', {
-    class: 'sticky top-0 z-40 bg-[var(--bg-surface)]/80 backdrop-blur-xl border-b border-[var(--border-default)] text-[var(--text-primary)] transition-colors duration-300',
+    class: 'sticky top-0 z-40 bg-[var(--bg-surface)] border-b border-[var(--border-default)] text-[var(--text-primary)] transition-colors duration-300',
   },
     h('div', { class: 'px-4 sm:px-6 lg:px-8' },
       h('div', { class: 'flex items-center justify-between h-16' },
@@ -75,7 +75,7 @@ export function mountAppShell(root: HTMLElement) {
 
   // ---------- 侧栏 / 主区 ----------
   // 侧栏固定一屏高度：sticky 跟随顶栏、self-start 不随列表内容拉伸，内部分类/标签区域独立滚动
-  const sidebarRoot = h('aside', { class: 'w-60 shrink-0 border-r border-[var(--border-default)] p-5 overflow-y-auto hidden md:flex md:flex-col sticky top-16 self-start h-[calc(100vh-64px)]' });
+  const sidebarRoot = h('aside', { class: 'w-72 shrink-0 border-r border-[var(--border-default)] p-5 overflow-y-auto hidden md:flex md:flex-col sticky top-16 self-start h-[calc(100vh-64px)]' });
   const viewRoot = h('main', { class: 'flex-1 min-w-0' });
   const toastRoot = h('div', { id: 'toast-root', class: 'fixed bottom-4 right-4 z-[60] space-y-2 pointer-events-none' });
 
@@ -149,16 +149,30 @@ function renderSidebar(): HTMLElement {
   };
 
   // 分类/标签内容：编辑态就地显示内联管理列表，否则显示筛选列表
+  // 分类保持列表行形式；标签改为紧凑按钮（chips），点击切换筛选
   const taxBody = (kind: 'category' | 'tag'): HTMLElement => {
     if (state.taxEdit === kind) {
-      const box = h('div', { class: 'space-y-0.5 px-3' });
+      const box = h('div', { class: 'space-y-1 px-1.5' });
       renderTaxonomyManage(kind, box);
       return box;
     }
-    const rows = kind === 'category'
-      ? state.categories.map((c) => item(c.name, f.categoryId === c.id, c.count, () => clickFilter({ categoryId: f.categoryId === c.id ? undefined : c.id })))
-      : state.tags.map((t) => item(`#${t.name}`, f.tag === t.name, t.count, () => clickFilter({ tag: f.tag === t.name ? undefined : t.name })));
-    return h('div', { class: 'space-y-0.5' }, ...rows);
+    if (kind === 'category') {
+      const rows = state.categories.map((c) => item(c.name, f.categoryId === c.id, c.count, () => clickFilter({ categoryId: f.categoryId === c.id ? undefined : c.id })));
+      return h('div', { class: 'space-y-0.5' }, ...rows);
+    }
+    const chips = state.tags.map((t) =>
+      h('button', {
+        class: 'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs border transition-colors ' +
+          (f.tag === t.name
+            ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)] font-medium'
+            : 'border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--accent)]/40 hover:text-[var(--accent)]'),
+        onclick: () => clickFilter({ tag: f.tag === t.name ? undefined : t.name }),
+      },
+        `#${t.name}`,
+        t.count != null ? h('span', { class: 'text-[10px] font-mono opacity-60' }, String(t.count)) : null,
+      ),
+    );
+    return h('div', { class: 'flex flex-wrap gap-1.5 px-1.5' }, ...chips);
   };
 
   const extLink = (href: string, title: string, icon: (s?: number) => HTMLElement) =>
@@ -184,13 +198,13 @@ function renderSidebar(): HTMLElement {
         h('div', { class: 'text-xs text-[var(--text-muted)] mt-0.5' }, '在读'),
       ),
     ),
-    // 分类区：占上半部（50% 高），独立滚动，保证标签区从侧栏中部开始
-    h('div', { class: 'shrink-0 h-[50%] min-h-0 overflow-y-auto' },
+    // 分类区：占 2/3（flex-[2]），独立滚动；分类比标签多占侧栏区域
+    h('div', { class: 'shrink-0 flex-[2] min-h-0 overflow-y-auto' },
       section('分类', [taxBody('category')], taxBtn('category')),
     ),
     // 分隔线：区分分类区与标签区
     h('div', { class: 'mx-3 border-t border-[var(--border-subtle)] my-2 shrink-0' }),
-    // 标签区：从中部延伸至底部快捷图标前，独立滚动，不随上方分类区滚动
+    // 标签区：占 1/3（flex-1），独立滚动，不随上方分类区滚动
     h('div', { class: 'flex-1 min-h-0 overflow-y-auto' },
       section('标签', [taxBody('tag')], taxBtn('tag')),
     ),

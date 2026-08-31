@@ -144,7 +144,7 @@ export function renderDrawer(book: Book) {
       h('div', { class: 'absolute inset-0 bg-gradient-to-t from-[var(--bg-surface)] via-[var(--bg-surface)]/60 to-[var(--bg-surface)]/30' }),
       h('div', { class: 'absolute bottom-0 left-0 right-0 p-5 pt-10' },
         h('h2', { class: 'text-2xl sm:text-3xl font-bold text-[var(--text-primary)] font-display drop-shadow-sm' }, current.title),
-        current.original_title ? h('p', { class: 'text-[var(--text-secondary)] text-sm mt-1' }, current.original_title) : undefined,
+        current.subtitle ? h('p', { class: 'text-[var(--text-secondary)] text-sm mt-1' }, current.subtitle) : undefined,
       ),
       h('button', {
         class: 'absolute top-4 right-4 p-2 rounded-full bg-[var(--bg-surface)]/80 hover:bg-[var(--bg-surface-hover)] text-[var(--text-primary)] transition-colors backdrop-blur-sm border border-[var(--border-default)]',
@@ -278,7 +278,7 @@ export function renderDrawer(book: Book) {
       editField('书名 *', els.title),
       editGrid2(editField('作者', els.author), editField('译者', els.translator)),
       editGrid2(editField('出版社', els.publisher), editField('出版年', els.publishYear)),
-      editGrid2(editField('页数', els.pageCount), editField('原作名', els.originalTitle)),
+      editGrid2(editField('页数', els.pageCount), editField('副标题', els.subtitle)),
       editGrid2(editField('ISBN', els.isbn), editField('评分', els.rating)),
       editGrid2(editField('状态', els.statusSel), editField('分类', els.catSel)),
       editField('收藏', h('label', { class: 'inline-flex items-center gap-2 cursor-pointer w-fit' }, els.favorite, h('span', { class: 'text-sm text-[var(--text-secondary)]' }, '加入收藏'))),

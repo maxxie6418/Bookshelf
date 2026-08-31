@@ -25,7 +25,7 @@ export function openBookForm(book?: Book) {
     field('书名 *', els.title),
     grid2(field('作者', els.author), field('译者', els.translator)),
     grid2(field('出版社', els.publisher), field('出版年', els.publishYear)),
-    grid2(field('页数', els.pageCount), field('原作名', els.originalTitle)),
+    grid2(field('页数', els.pageCount), field('副标题', els.subtitle)),
     grid2(field('ISBN', els.isbn), field('评分', els.rating)),
     grid2(field('状态', els.statusSel), field('分类', els.catSel)),
     field('收藏', h('label', { class: 'inline-flex items-center gap-2 cursor-pointer w-fit' }, els.favorite, h('span', { class: 'text-sm text-[var(--text-secondary)]' }, '加入收藏'))),

@@ -69,7 +69,7 @@ export function toast(message: string, type: 'success' | 'error' = 'success') {
 export function confirmDialog(message: string): Promise<boolean> {
   return new Promise((resolve) => {
     const overlay = h('div', {
-      class: 'fixed inset-0 z-50 bg-[var(--overlay-bg)] flex items-center justify-center p-4 opacity-0 transition-all duration-300 ease-[var(--ease-out-expo)]',
+      class: 'fixed inset-0 z-50 bg-[var(--overlay-bg)] flex items-center justify-center p-4 opacity-0 overscroll-contain transition-all duration-300 ease-[var(--ease-out-expo)]',
     });
     const box = h(
       'div',
@@ -228,6 +228,25 @@ export function iconClose(size?: number) {
   return svgIcon(h('path', { d: 'M6 18 18 6M6 6l12 12' }), size);
 }
 
+export function iconCheck(size = 16) {
+  return h('svg', {
+    width: size, height: size, viewBox: '0 0 24 24', fill: 'none',
+    stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round',
+  }, h('polyline', { points: '20 6 9 17 4 12' }));
+}
+
+export function iconRefresh(size = 16) {
+  return h('svg', {
+    width: size, height: size, viewBox: '0 0 24 24', fill: 'none',
+    stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round',
+  },
+    h('path', { d: 'M3 12a9 9 0 0 1 15-6.7L21 8' }),
+    h('polyline', { points: '21 3 21 8 16 8' }),
+    h('path', { d: 'M21 12a9 9 0 0 1-15 6.7L3 16' }),
+    h('polyline', { points: '3 21 3 16 8 16' }),
+  );
+}
+
 export function iconBookOpen(size?: number) {
   return svgIcon(h('path', { d: 'M12 6.042A8.967 8.967 0 0 0 6 3c-1.052 0-2.062.18-3 .512v14.25A8.969 8.969 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.967 8.967 0 0 1 6-3.042c1.052 0 2.062.18 3 .512v14.25A8.969 8.969 0 0 0 18 18c-2.305 0-4.408.867-6 2.292' }), size);
 }
@@ -257,7 +276,7 @@ export function iconChevronLeft(size?: number) {
 }
 
 export function modal(title: string, content: HTMLElement, onClose?: () => void, sizeClass = 'max-w-2xl'): HTMLElement {
-  const overlay = h('div', { class: 'fixed inset-0 z-40 bg-[var(--overlay-bg)] flex items-start justify-center p-4 pt-16 overflow-y-auto opacity-0 transition-all duration-300 ease-[var(--ease-out-expo)]' });
+  const overlay = h('div', { class: 'fixed inset-0 z-40 bg-[var(--overlay-bg)] flex items-start justify-center p-4 pt-16 overflow-y-auto overscroll-contain opacity-0 transition-all duration-300 ease-[var(--ease-out-expo)]' });
   const box = h(
     'div',
     { class: `bg-[var(--bg-surface)] rounded-2xl shadow-2xl w-full ${sizeClass} p-6 border border-[var(--border-default)] opacity-0 scale-95 transition-all duration-300 ease-[var(--ease-out-expo)]` },

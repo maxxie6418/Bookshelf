@@ -59,7 +59,7 @@ function formatTime(t?: string | null): string {
 
 // 新 Key 明文：独立锁定模态，不点「我已保存，关闭」不会消失，可随时复制
 function showKeyPlaintext(plain: string, label: string) {
-  const overlay = h('div', { class: 'fixed inset-0 z-50 bg-[var(--overlay-bg)] flex items-center justify-center p-4 opacity-0 transition-all duration-300 ease-[var(--ease-out-expo)]' });
+  const overlay = h('div', { class: 'fixed inset-0 z-50 bg-[var(--overlay-bg)] flex items-center justify-center p-4 opacity-0 overscroll-contain transition-all duration-300 ease-[var(--ease-out-expo)]' });
   const copyBtn = h('button', {
     class: 'flex-1 px-4 py-2.5 rounded-xl bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text)] text-sm font-medium transition-colors',
     onclick: async () => {
@@ -261,21 +261,26 @@ async function renderAgentKeysSection(container: HTMLElement) {
 
 // 分类与标签管理：独立弹窗页面，复用侧栏内联管理组件（新增/改名/删除）
 export function openTaxonomySettings() {
-  const catBox = h('div', { class: 'space-y-0.5' });
-  const tagBox = h('div', { class: 'space-y-0.5' });
+  const catBox = h('div', { class: 'space-y-1.5' });
+  const tagBox = h('div', { class: 'space-y-1.5' });
   renderTaxonomyManage('category', catBox);
   renderTaxonomyManage('tag', tagBox);
-  const content = h('div', { class: 'space-y-6' },
-    h('div', {},
-      h('h4', { class: 'text-sm font-medium text-[var(--text-primary)] mb-1.5' }, '分类'),
-      h('p', { class: 'text-xs text-[var(--text-secondary)] mb-2' }, '分类用于筛选书籍；删除后关联书籍变为未分类。'),
-      catBox,
-    ),
-    h('div', {},
-      h('h4', { class: 'text-sm font-medium text-[var(--text-primary)] mb-1.5' }, '标签'),
-      h('p', { class: 'text-xs text-[var(--text-secondary)] mb-2' }, '标签用于筛选书籍；删除后从关联书籍上移除。'),
-      tagBox,
-    ),
+
+  const card = (title: string, desc: string, count: number, box: HTMLElement) =>
+    h('div', { class: 'rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] overflow-hidden' },
+      h('div', { class: 'flex items-center justify-between gap-3 px-4 py-3 border-b border-[var(--border-subtle)]' },
+        h('div', { class: 'min-w-0' },
+          h('h4', { class: 'text-sm font-semibold text-[var(--text-primary)]' }, title),
+          h('p', { class: 'text-xs text-[var(--text-muted)] mt-0.5' }, desc),
+        ),
+        h('span', { class: 'shrink-0 text-xs text-[var(--text-muted)] font-mono px-2 py-0.5 rounded-full bg-[var(--bg-surface-hover)]' }, `${count} 项`),
+      ),
+      h('div', { class: 'p-3' }, box),
+    );
+
+  const content = h('div', { class: 'space-y-4' },
+    card('分类', '用于筛选书籍；删除后关联书籍变为未分类。新建分类自动分配一个区分色。', state.categories.length, catBox),
+    card('标签', '用于筛选书籍；删除后从关联书籍上移除。', state.tags.length, tagBox),
   );
   modal('分类与标签管理', content);
 }

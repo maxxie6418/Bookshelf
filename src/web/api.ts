@@ -77,7 +77,7 @@ export const api = {
       publisher: string | null;
       publish_year: number | null;
       page_count: number | null;
-      original_title: string | null;
+      subtitle: string | null;
       isbn: string | null;
       description: string | null;
       cover_url: string | null;

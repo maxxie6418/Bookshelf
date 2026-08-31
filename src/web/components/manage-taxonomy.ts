@@ -5,7 +5,7 @@
 // - 行高固定、就地置换，不改动侧栏整体高度。
 import { api } from '../api';
 import { state } from '../state';
-import { h, toast, iconPlus } from '../ui';
+import { h, toast, iconPlus, iconEdit, iconTrash } from '../ui';
 import { refresh, refreshSidebar } from '../refresh';
 
 type Kind = 'category' | 'tag';
@@ -29,17 +29,17 @@ function row(kind: Kind, item: { id: number; name: string; count: number; color?
     type: 'text',
     value: item.name,
     maxlength: kind === 'category' ? 30 : 20,
-    class: 'flex-1 min-w-0 px-1.5 py-1 text-sm bg-transparent border border-transparent rounded-md focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/40 outline-none text-[var(--text-primary)] transition-colors',
+    class: 'flex-1 min-w-0 px-2 py-1 text-sm bg-[var(--bg-page)] border border-[var(--border-subtle)] rounded-lg focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/30 focus:outline-none text-[var(--text-primary)] transition-colors',
   });
   const enterSave = (e: KeyboardEvent) => { if (e.key === 'Enter') { e.preventDefault(); saveName(); } };
   input.addEventListener('keydown', enterSave);
 
-  const actionBtn = (label: string, title: string, cls: string, onclick: () => void) =>
+  const iconBtn = (icon: HTMLElement, title: string, cls: string, onclick: () => void) =>
     h('button', {
-      class: `px-1.5 py-0.5 text-[11px] rounded-md shrink-0 transition-colors ${cls}`,
+      class: `flex items-center justify-center w-7 h-7 rounded-lg shrink-0 transition-colors ${cls}`,
       title,
       onclick,
-    }, label);
+    }, icon);
 
   const saveName = async () => {
     const name = input.value.trim();
@@ -70,13 +70,14 @@ function row(kind: Kind, item: { id: number; name: string; count: number; color?
     }
   };
 
-  return h('div', { class: 'flex items-center gap-1 min-h-0' },
+  return h('div', { class: 'flex items-center gap-2 px-2 py-1.5 rounded-xl border border-transparent hover:border-[var(--border-subtle)] hover:bg-[var(--bg-surface-hover)]/60 transition-colors' },
     kind === 'category'
-      ? h('span', { class: 'w-2.5 h-2.5 rounded-sm shrink-0', style: `background:${item.color ?? '#8a8274'}` })
-      : h('span', { class: 'text-[var(--accent)] text-xs shrink-0' }, '#'),
+      ? h('span', { class: 'w-3 h-3 rounded-md shrink-0 ring-1 ring-black/10', style: `background:${item.color ?? '#8a8274'}` })
+      : h('span', { class: 'text-[var(--accent)] text-xs font-bold shrink-0' }, '#'),
     input,
-    actionBtn('改名', '保存改名', 'text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--bg-surface-hover)]', saveName),
-    actionBtn('删除', '删除', 'text-[var(--text-muted)] hover:text-red-500 hover:bg-red-500/10', del),
+    h('span', { class: 'text-[11px] text-[var(--text-muted)] font-mono shrink-0 tabular-nums', title: '关联书籍数' }, String(item.count ?? 0)),
+    iconBtn(iconEdit(14), '保存改名', 'text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/10', saveName),
+    iconBtn(iconTrash(14), '删除', 'text-[var(--text-muted)] hover:text-red-500 hover:bg-red-500/10', del),
   );
 }
 
@@ -106,14 +107,18 @@ function newRow(kind: Kind, rebuild: () => void): HTMLElement {
     }
   };
   input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); void create(); } });
-  return h('div', { class: 'flex items-center gap-1' },
-    h('span', { class: kind === 'category' ? 'w-2.5 h-2.5 rounded-sm shrink-0 bg-[var(--accent)]/30' : 'text-[var(--accent)] text-xs shrink-0' }, '#'),
+  const previewColor = CATEGORY_COLORS[state.categories.length % CATEGORY_COLORS.length];
+  return h('div', { class: 'flex items-center gap-2 px-2 py-1.5 rounded-xl border border-dashed border-[var(--border-subtle)] opacity-90 hover:opacity-100 transition-opacity' },
+    h('span', {
+      class: kind === 'category' ? 'w-3 h-3 rounded-md shrink-0 ring-1 ring-black/10' : 'text-[var(--accent)] text-xs font-bold shrink-0',
+      style: kind === 'category' ? `background:${previewColor}66` : undefined,
+    }, kind === 'tag' ? '#' : undefined),
     input,
     h('button', {
-      class: 'px-2 py-1 rounded-md bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text)] text-[11px] font-medium shrink-0 transition-colors',
+      class: 'flex items-center justify-center w-7 h-7 rounded-lg bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text)] shrink-0 transition-colors',
       title: '保存新增',
       onclick: () => void create(),
-    }, iconPlus(14), '保存'),
+    }, iconPlus(14)),
   );
 }
 
