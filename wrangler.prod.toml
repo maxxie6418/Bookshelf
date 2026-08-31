@@ -1,0 +1,26 @@
+name = "bookshelf"
+main = "src/index.ts"
+compatibility_date = "2024-11-01"
+
+assets = { directory = "./dist", binding = "ASSETS" }
+
+[vars]
+APP_NAME = "Bookshelf"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "bookshelf"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+migrations_dir = "migrations"
+
+[[r2_buckets]]
+binding = "COVERS"
+bucket_name = "bookshelf-covers"
+
+[[kv_namespaces]]
+binding = "KV"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+
+[observability]
+enabled = true
+head_sampling_rate = 1
