@@ -112,11 +112,13 @@ export function createInlineEditRow(book: Book, handlers: InlineEditHandlers): H
     ),
     // 2. 书名（只读）
     h('td', { class: 'px-4 py-2 align-middle' },
-      h('div', { class: 'font-medium text-sm font-display text-[var(--text-primary)]' }, book.title),
-      book.subtitle ? h('div', { class: 'text-xs text-[var(--text-muted)] mt-0.5' }, book.subtitle) : null,
+      h('div', { class: 'font-medium text-sm font-display text-[var(--text-primary)] truncate max-w-[240px]', title: book.title }, book.title),
+      book.subtitle ? h('div', { class: 'text-xs text-[var(--text-muted)] truncate max-w-[240px]', title: book.subtitle }, book.subtitle) : null,
     ),
     // 3. 作者（只读）
-    h('td', { class: 'px-4 py-2 align-middle text-sm text-[var(--text-secondary)]' }, book.author ?? ''),
+    h('td', { class: 'px-4 py-2 align-middle' },
+      h('span', { class: 'block text-sm text-[var(--text-secondary)] truncate max-w-[150px]', title: book.author ?? '' }, book.author ?? ''),
+    ),
     // 4. 状态
     h('td', { class: 'px-4 py-2 align-middle' }, statusSel),
     // 5. 分类

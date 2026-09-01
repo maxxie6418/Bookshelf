@@ -51,15 +51,15 @@ async function refreshMeta(b: Book, btn: HTMLButtonElement) {
   }
 }
 
-// 标签胶囊：最多展示 3 个，超出合并为 +N（title 提示完整列表），点击可筛选该标签
+// 标签胶囊：单排最多 3 个，最多展示 6 个（两排），超出合并为 +N（title 提示完整列表），点击可筛选该标签
 function renderTagChips(tags: string[]): HTMLElement {
   if (!tags.length) return h('span', { class: 'text-xs text-[var(--text-muted)]' }, '—');
-  const shown = tags.slice(0, 3);
+  const shown = tags.slice(0, 6);
   const rest = tags.length - shown.length;
-  const wrap = h('div', { class: 'flex flex-wrap gap-1 max-w-[220px]' });
+  const wrap = h('div', { class: 'flex flex-wrap gap-1.5 max-w-[250px]' });
   for (const t of shown) {
     wrap.append(h('button', {
-      class: 'inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] text-[10px] leading-none text-[var(--text-secondary)] hover:text-[var(--accent)] hover:border-[var(--accent)]/40 transition-colors cursor-pointer',
+      class: 'inline-flex items-center gap-1 px-2 py-1 rounded-md bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] text-xs leading-none text-[var(--text-secondary)] hover:text-[var(--accent)] hover:border-[var(--accent)]/40 transition-colors cursor-pointer',
       title: `筛选标签 #${t}`,
       onclick: (e: Event) => {
         e.stopPropagation();
@@ -70,7 +70,7 @@ function renderTagChips(tags: string[]): HTMLElement {
   }
   if (rest > 0) {
     wrap.append(h('span', {
-      class: 'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] leading-none text-[var(--text-muted)]',
+      class: 'inline-flex items-center px-2 py-1 rounded-md text-xs leading-none text-[var(--text-muted)]',
       title: tags.join('，'),
     }, `+${rest}`));
   }
@@ -298,7 +298,7 @@ function renderSkeletonTable(): HTMLElement {
       h('td', { class: 'px-4 py-2' }, h('div', { class: 'h-3 w-16 rounded skeleton' })),
       h('td', { class: 'px-4 py-2' }, h('div', { class: 'h-3 w-16 rounded skeleton' })),
       h('td', { class: 'px-4 py-2' }, h('div', { class: 'h-3 w-20 rounded skeleton' })),
-      h('td', { class: 'px-4 py-2' }, h('div', { class: 'h-3 w-16 rounded skeleton' })),
+      h('td', { class: 'px-4 py-2' }, h('div', { class: 'h-3 w-24 rounded skeleton' })),
       h('td', { class: 'px-4 py-2' }, h('div', { class: 'h-3 w-20 rounded skeleton' })),
       h('td', { class: 'px-4 py-2 text-right' }, h('div', { class: 'inline-block h-3 w-8 rounded skeleton' })),
     );
@@ -424,21 +424,26 @@ function renderBookRow(b: Book): HTMLTableRowElement {
   );
   row.append(
     coverCell,
+    // 书名：截断防撑宽，hover 显示完整标题
     h('td', { class: 'px-4 py-2 align-middle' },
-      h('div', { class: 'font-medium text-sm font-display text-[var(--text-primary)]' }, b.title),
-      b.subtitle ? h('div', { class: 'text-xs text-[var(--text-muted)] mt-0.5' }, b.subtitle) : null,
+      h('div', { class: 'font-medium text-sm font-display text-[var(--text-primary)] truncate max-w-[240px]', title: b.title }, b.title),
+      b.subtitle ? h('div', { class: 'text-xs text-[var(--text-muted)] truncate max-w-[240px]', title: b.subtitle }, b.subtitle) : null,
     ),
-    h('td', { class: 'px-4 py-2 align-middle text-sm text-[var(--text-secondary)]' }, b.author ?? ''),
+    // 作者：截断防撑宽，hover 显示完整
+    h('td', { class: 'px-4 py-2 align-middle' },
+      h('span', { class: 'block text-sm text-[var(--text-secondary)] truncate max-w-[150px]', title: b.author ?? '' }, b.author ?? ''),
+    ),
     h('td', { class: 'px-4 py-2 align-middle' },
       h('span', { class: `inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${meta.bg} ${meta.text}` },
         h('span', { class: `w-1.5 h-1.5 rounded-full ${meta.dot}` }),
         STATUS_LABEL[b.status] ?? b.status,
       ),
     ),
-    h('td', { class: 'px-4 py-2 align-middle' },
+    // 分类：放大字号，预留约 10 字宽，不折叠不截断
+    h('td', { class: 'px-4 py-2 align-middle whitespace-nowrap min-w-[10em]' },
       b.category_name
-        ? h('span', { class: 'inline-flex items-center gap-1.5 text-xs text-[var(--text-secondary)]' },
-            h('span', { class: 'w-2 h-2 rounded-sm', style: `background:${b.category_color ?? '#8a8274'}` }),
+        ? h('span', { class: 'inline-flex items-center gap-1.5 text-sm text-[var(--text-secondary)]', title: b.category_name },
+            h('span', { class: 'w-2.5 h-2.5 rounded-sm', style: `background:${b.category_color ?? '#8a8274'}` }),
             b.category_name,
           )
         : '',
@@ -447,7 +452,7 @@ function renderBookRow(b: Book): HTMLTableRowElement {
     h('td', { class: 'px-4 py-2 align-middle' }, renderTagChips(b.tags ?? [])),
     h('td', { class: 'px-4 py-2 align-middle' },
       b.douban_url
-        ? h('a', { href: b.douban_url, target: '_blank', rel: 'noreferrer', class: 'text-xs text-[var(--accent)] hover:underline break-all', onclick: (e: Event) => e.stopPropagation() }, mainDomain(b.douban_url))
+        ? h('a', { href: b.douban_url, target: '_blank', rel: 'noreferrer', class: 'block text-xs text-[var(--accent)] hover:underline truncate max-w-[150px]', title: b.douban_url, onclick: (e: Event) => e.stopPropagation() }, mainDomain(b.douban_url))
         : '',
     ),
     h('td', { class: 'px-4 py-2 align-middle text-right whitespace-nowrap' }, actions),
