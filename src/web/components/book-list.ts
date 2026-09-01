@@ -459,15 +459,15 @@ function renderTable(): HTMLElement {
   const table = h('table', { class: 'w-full text-sm' });
   const thead = h('thead');
   thead.append(h('tr', { class: 'border-b border-[var(--border-default)] text-left text-xs text-[var(--text-muted)] uppercase tracking-wider' },
-    h('th', { class: 'px-4 py-2 font-medium align-middle' }, '封面'),
-    h('th', { class: 'px-4 py-2 font-medium align-middle' }, '书名'),
-    h('th', { class: 'px-4 py-2 font-medium align-middle' }, '作者'),
-    h('th', { class: 'px-4 py-2 font-medium align-middle' }, '状态'),
-    h('th', { class: 'px-4 py-2 font-medium align-middle' }, '分类'),
-    h('th', { class: 'px-4 py-2 font-medium align-middle' }, '评分'),
-    h('th', { class: 'px-4 py-2 font-medium align-middle' }, '标签'),
-    h('th', { class: 'px-4 py-2 font-medium align-middle' }, '豆瓣链接'),
-    h('th', { class: 'px-4 py-2 font-medium align-middle text-right' }, '操作'),
+    h('th', { class: 'px-4 py-2 font-medium align-middle border-r border-[var(--border-subtle)]' }, '封面'),
+    h('th', { class: 'px-4 py-2 font-medium align-middle border-r border-[var(--border-subtle)]' }, '书名'),
+    h('th', { class: 'px-4 py-2 font-medium align-middle border-r border-[var(--border-subtle)]' }, '作者'),
+    h('th', { class: 'px-4 py-2 font-medium align-middle border-r border-[var(--border-subtle)]' }, '状态'),
+    h('th', { class: 'px-4 py-2 font-medium align-middle border-r border-[var(--border-subtle)]' }, '分类'),
+    h('th', { class: 'px-4 py-2 font-medium align-middle border-r border-[var(--border-subtle)]' }, '评分'),
+    h('th', { class: 'px-4 py-2 font-medium align-middle border-r border-[var(--border-subtle)]' }, '标签'),
+    h('th', { class: 'px-4 py-2 font-medium align-middle border-r border-[var(--border-subtle)]' }, '豆瓣链接'),
+    h('th', { class: 'px-4 py-2 font-medium align-middle text-right border-r border-[var(--border-subtle)]' }, '操作'),
   ));
   const tbody = h('tbody');
   const books = state.books;
