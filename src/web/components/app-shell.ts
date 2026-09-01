@@ -197,8 +197,8 @@ function renderSidebar(): HTMLElement {
         h('div', { class: 'text-xs text-[var(--text-muted)] mt-0.5' }, '在读'),
       ),
     ),
-    // 分类区：占 2/3（flex-[2]），独立滚动；分类比标签多占侧栏区域
-    h('div', { class: 'shrink-0 flex-[2] min-h-0 overflow-y-auto' },
+    // 分类区：占 2/3（flex-[2]），分类比标签多占侧栏区域
+    h('div', { class: 'shrink-0 flex-[2] min-h-0 overflow-y-hidden pb-1' },
       section('分类', [taxBody('category')], taxBtn('category')),
     ),
     // 分隔线：区分分类区与标签区
