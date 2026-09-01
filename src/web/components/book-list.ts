@@ -66,7 +66,7 @@ function renderTagChips(tags: string[]): HTMLElement {
         setState({ filters: { ...state.filters, tag: t } });
         void refresh();
       },
-    }, `#${t}`)));
+    }, `#${t}`));
   }
   if (rest > 0) {
     wrap.append(h('span', {
