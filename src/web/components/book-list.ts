@@ -419,12 +419,12 @@ function renderBookRow(b: Book): HTMLTableRowElement {
     coverCell,
     // 书名：截断防撑宽，hover 显示完整标题
     h('td', { class: 'px-4 py-2 align-middle' },
-      h('div', { class: 'font-medium text-sm font-display text-[var(--text-primary)] truncate max-w-[190px]', title: b.title }, b.title),
-      b.subtitle ? h('div', { class: 'text-xs text-[var(--text-muted)] truncate max-w-[190px]', title: b.subtitle }, b.subtitle) : null,
+      h('div', { class: 'w-[80%] font-medium text-sm font-display text-[var(--text-primary)] truncate', title: b.title }, b.title),
+      b.subtitle ? h('div', { class: 'w-[80%] text-xs text-[var(--text-muted)] truncate', title: b.subtitle }, b.subtitle) : null,
     ),
     // 作者：截断防撑宽，hover 显示完整
     h('td', { class: 'px-4 py-2 align-middle' },
-      h('span', { class: 'block text-sm text-[var(--text-secondary)] truncate max-w-[110px]', title: b.author ?? '' }, b.author ?? ''),
+      h('span', { class: 'block w-[80%] text-sm text-[var(--text-secondary)] truncate', title: b.author ?? '' }, b.author ?? ''),
     ),
     h('td', { class: 'px-4 py-2 align-middle' },
       h('span', { class: `inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${meta.bg} ${meta.text}` },
