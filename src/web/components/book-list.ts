@@ -51,6 +51,32 @@ async function refreshMeta(b: Book, btn: HTMLButtonElement) {
   }
 }
 
+// 标签胶囊：最多展示 3 个，超出合并为 +N（title 提示完整列表），点击可筛选该标签
+function renderTagChips(tags: string[]): HTMLElement {
+  if (!tags.length) return h('span', { class: 'text-xs text-[var(--text-muted)]' }, '—');
+  const shown = tags.slice(0, 3);
+  const rest = tags.length - shown.length;
+  const wrap = h('div', { class: 'flex flex-wrap gap-1 max-w-[220px]' });
+  for (const t of shown) {
+    wrap.append(h('button', {
+      class: 'inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] text-[10px] leading-none text-[var(--text-secondary)] hover:text-[var(--accent)] hover:border-[var(--accent)]/40 transition-colors cursor-pointer',
+      title: `筛选标签 #${t}`,
+      onclick: (e: Event) => {
+        e.stopPropagation();
+        setState({ filters: { ...state.filters, tag: t } });
+        void refresh();
+      },
+    }, `#${t}`)));
+  }
+  if (rest > 0) {
+    wrap.append(h('span', {
+      class: 'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] leading-none text-[var(--text-muted)]',
+      title: tags.join('，'),
+    }, `+${rest}`));
+  }
+  return wrap;
+}
+
 function statusBadge(b: Book): HTMLElement {
   const meta = STATUS_META[b.status] ?? STATUS_META.unread;
   return h('span', {
@@ -272,6 +298,7 @@ function renderSkeletonTable(): HTMLElement {
       h('td', { class: 'px-4 py-2' }, h('div', { class: 'h-3 w-16 rounded skeleton' })),
       h('td', { class: 'px-4 py-2' }, h('div', { class: 'h-3 w-16 rounded skeleton' })),
       h('td', { class: 'px-4 py-2' }, h('div', { class: 'h-3 w-20 rounded skeleton' })),
+      h('td', { class: 'px-4 py-2' }, h('div', { class: 'h-3 w-16 rounded skeleton' })),
       h('td', { class: 'px-4 py-2' }, h('div', { class: 'h-3 w-20 rounded skeleton' })),
       h('td', { class: 'px-4 py-2 text-right' }, h('div', { class: 'inline-block h-3 w-8 rounded skeleton' })),
     );
@@ -417,6 +444,7 @@ function renderBookRow(b: Book): HTMLTableRowElement {
         : '',
     ),
     h('td', { class: 'px-4 py-2 align-middle' }, renderStars(b.rating)),
+    h('td', { class: 'px-4 py-2 align-middle' }, renderTagChips(b.tags ?? [])),
     h('td', { class: 'px-4 py-2 align-middle' },
       b.douban_url
         ? h('a', { href: b.douban_url, target: '_blank', rel: 'noreferrer', class: 'text-xs text-[var(--accent)] hover:underline break-all', onclick: (e: Event) => e.stopPropagation() }, mainDomain(b.douban_url))
@@ -439,6 +467,7 @@ function renderTable(): HTMLElement {
     h('th', { class: 'px-4 py-2 font-medium align-middle' }, '状态'),
     h('th', { class: 'px-4 py-2 font-medium align-middle' }, '分类'),
     h('th', { class: 'px-4 py-2 font-medium align-middle' }, '评分'),
+    h('th', { class: 'px-4 py-2 font-medium align-middle' }, '标签'),
     h('th', { class: 'px-4 py-2 font-medium align-middle' }, '豆瓣链接'),
     h('th', { class: 'px-4 py-2 font-medium align-middle text-right' }, '操作'),
   ));

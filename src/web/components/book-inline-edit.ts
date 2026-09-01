@@ -65,7 +65,7 @@ export function createInlineEditRow(book: Book, handlers: InlineEditHandlers): H
   const favEl = h('input', { type: 'checkbox', class: 'w-4 h-4 rounded accent-[var(--accent)]' });
   favEl.checked = !!book.favorite;
 
-  const tagsEl = h('input', { class: inputCls + ' w-full mt-1.5', value: book.tags.join(', '), placeholder: '标签（逗号分隔）' });
+  const tagsEl = h('input', { class: inputCls + ' w-full', value: book.tags.join(', '), placeholder: '标签（逗号分隔）' });
 
   const saveBtn = h('button', {
     class: 'flex items-center justify-center w-7 h-7 rounded-lg text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/10 transition-colors shrink-0',
@@ -104,17 +104,16 @@ export function createInlineEditRow(book: Book, handlers: InlineEditHandlers): H
     }
   }
 
-  // 保持与表头一致的 8 列结构，避免 colspan 导致布局错乱
+  // 保持与表头一致的 9 列结构，避免 colspan 导致布局错乱
   return h('tr', { class: 'bg-[var(--accent)]/5' },
     // 1. 封面
     h('td', { class: 'px-4 py-2 align-middle' },
       h('div', { class: 'w-10 h-14 rounded-md overflow-hidden shadow-sm' }, coverEl(book)),
     ),
-    // 2. 书名（含标签编辑）
+    // 2. 书名（只读）
     h('td', { class: 'px-4 py-2 align-middle' },
       h('div', { class: 'font-medium text-sm font-display text-[var(--text-primary)]' }, book.title),
       book.subtitle ? h('div', { class: 'text-xs text-[var(--text-muted)] mt-0.5' }, book.subtitle) : null,
-      tagsEl,
     ),
     // 3. 作者（只读）
     h('td', { class: 'px-4 py-2 align-middle text-sm text-[var(--text-secondary)]' }, book.author ?? ''),
@@ -124,13 +123,15 @@ export function createInlineEditRow(book: Book, handlers: InlineEditHandlers): H
     h('td', { class: 'px-4 py-2 align-middle' }, catSel),
     // 6. 评分
     h('td', { class: 'px-4 py-2 align-middle' }, ratingEl),
-    // 7. 豆瓣链接（只读）
+    // 7. 标签（原位编辑）
+    h('td', { class: 'px-4 py-2 align-middle' }, tagsEl),
+    // 8. 豆瓣链接（只读）
     h('td', { class: 'px-4 py-2 align-middle' },
       book.douban_url
         ? h('a', { href: book.douban_url, target: '_blank', rel: 'noreferrer', class: 'text-xs text-[var(--accent)] hover:underline break-all' }, mainDomain(book.douban_url))
         : h('span', { class: 'text-xs text-[var(--text-muted)]' }, '—'),
     ),
-    // 8. 操作
+    // 9. 操作
     h('td', { class: 'px-4 py-2 align-middle text-right whitespace-nowrap' },
       h('div', { class: 'inline-flex items-center gap-2' },
         h('label', { class: 'flex items-center gap-1 cursor-pointer shrink-0' },
