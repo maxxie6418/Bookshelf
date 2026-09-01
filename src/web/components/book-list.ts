@@ -199,7 +199,7 @@ export function renderBookList(container: HTMLElement) {
 
   main.append(
     // 列表头栏
-    h('div', { class: 'sticky top-16 z-30 bg-[var(--bg-page)]/80 backdrop-blur-lg border-b border-[var(--border-default)] -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-3 mb-4' },
+    h('div', { class: 'sticky top-16 z-30 bg-[var(--bg-page)] border-b border-[var(--border-default)] -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-3 mb-4' },
       h('div', { class: 'flex items-center justify-between gap-3 flex-wrap' },
         h('div', { class: 'flex items-center gap-3 min-w-0' },
           h('h2', { class: 'text-lg font-semibold font-display text-[var(--text-primary)] whitespace-nowrap' }, viewTitle),
@@ -419,12 +419,12 @@ function renderBookRow(b: Book): HTMLTableRowElement {
     coverCell,
     // 书名：截断防撑宽，hover 显示完整标题
     h('td', { class: 'px-4 py-2 align-middle' },
-      h('div', { class: 'font-medium text-sm font-display text-[var(--text-primary)] truncate max-w-[240px]', title: b.title }, b.title),
-      b.subtitle ? h('div', { class: 'text-xs text-[var(--text-muted)] truncate max-w-[240px]', title: b.subtitle }, b.subtitle) : null,
+      h('div', { class: 'font-medium text-sm font-display text-[var(--text-primary)] truncate max-w-[190px]', title: b.title }, b.title),
+      b.subtitle ? h('div', { class: 'text-xs text-[var(--text-muted)] truncate max-w-[190px]', title: b.subtitle }, b.subtitle) : null,
     ),
     // 作者：截断防撑宽，hover 显示完整
     h('td', { class: 'px-4 py-2 align-middle' },
-      h('span', { class: 'block text-sm text-[var(--text-secondary)] truncate max-w-[150px]', title: b.author ?? '' }, b.author ?? ''),
+      h('span', { class: 'block text-sm text-[var(--text-secondary)] truncate max-w-[110px]', title: b.author ?? '' }, b.author ?? ''),
     ),
     h('td', { class: 'px-4 py-2 align-middle' },
       h('span', { class: `inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${meta.bg} ${meta.text}` },
@@ -506,10 +506,10 @@ function renderGrid(): HTMLElement {
         h('div', { class: 'absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors' }),
       ),
       h('div', { class: 'px-1.5 pb-1.5 pt-2 space-y-1' },
-        h('h3', { class: 'font-display font-semibold text-[13px] leading-tight line-clamp-1 text-[var(--text-primary)] group-hover:text-[var(--accent)] transition-colors' }, b.title),
-        b.subtitle ? h('p', { class: 'text-[11px] text-[var(--text-muted)] leading-tight line-clamp-1 group-hover:text-[var(--accent)]/70 transition-colors' }, b.subtitle) : null,
-        h('p', { class: 'text-[11px] text-[var(--text-secondary)] line-clamp-1' }, b.author ?? ''),
-        h('div', { class: 'flex items-center gap-2 pt-0.5' },
+        h('h3', { class: 'font-display font-semibold text-[13px] leading-tight line-clamp-1 text-[var(--text-primary)] group-hover:text-[var(--accent)] transition-colors', title: b.title }, b.title),
+        h('p', { class: 'text-[11px] text-[var(--text-muted)] leading-tight line-clamp-1 min-h-[1.1em]', title: b.subtitle ?? '' }, b.subtitle ?? ''),
+        h('p', { class: 'text-[11px] text-[var(--text-secondary)] line-clamp-1', title: b.author ?? '' }, b.author ?? ''),
+        h('div', { class: 'flex items-center justify-between gap-2 pt-0.5' },
           statusBadge(b),
           b.rating ? renderStars(b.rating) : null,
         ),

@@ -140,7 +140,7 @@ export function renderDrawer(book: Book) {
           renderCoverPlaceholder(current, 'table'));
     return h('div', { class: 'relative h-40 sm:h-48 overflow-hidden bg-[var(--bg-page)]' },
       backLayer,
-      h('div', { class: 'absolute inset-0 bg-gradient-to-t from-[var(--bg-surface)] via-[var(--bg-surface)]/60 to-[var(--bg-surface)]/30' }),
+      h('div', { class: 'absolute inset-0 bg-gradient-to-t from-[var(--bg-surface)] via-[var(--bg-surface)]/85 to-[var(--bg-surface)]/60' }),
       h('div', { class: 'absolute bottom-0 left-0 right-0 p-5 pt-10' },
         h('h2', { class: 'text-2xl sm:text-3xl font-bold text-[var(--text-primary)] font-display drop-shadow-sm' }, current.title),
         current.subtitle ? h('p', { class: 'text-[var(--text-secondary)] text-sm mt-1' }, current.subtitle) : undefined,
