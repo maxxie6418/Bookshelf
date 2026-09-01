@@ -9,10 +9,10 @@ export const PAGE_SIZE = 60;
 // 侧栏统计用全量上限；服务端默认 limit=100，全量统计需显式传大到足以覆盖全部藏书
 const ALL_LIMIT = 1000;
 
-export async function refresh(resetPage = true) {
+export async function refresh(resetPage = true, showLoading = true) {
   if (resetPage) setState({ page: 1 });
   const f = state.viewMode === 'trash' ? { ...state.filters, trash: true as const } : state.filters;
-  setState({ loading: true });
+  if (showLoading) setState({ loading: true });
   try {
     const mainReq = api.listBooks({ ...f, limit: PAGE_SIZE, offset: (state.page - 1) * PAGE_SIZE });
     const allReq = state.viewMode !== 'trash' ? api.listBooks({ limit: ALL_LIMIT }) : null;
@@ -20,14 +20,15 @@ export async function refresh(resetPage = true) {
       mainReq,
       allReq,
     ] as [Promise<BookListResult>, Promise<BookListResult> | null]);
-    setState({
+    const patch: Partial<typeof state> = {
       books: res.items,
       total: res.total,
       allBooks: allRes?.items ?? res.items,
-      loading: false,
-    });
+    };
+    if (showLoading) patch.loading = false;
+    setState(patch);
   } catch (e) {
-    setState({ loading: false });
+    if (showLoading) setState({ loading: false });
     toast((e as Error).message, 'error');
   }
 }

@@ -42,7 +42,7 @@ async function refreshMeta(b: Book, btn: HTMLButtonElement) {
     }
     await api.updateBook(b.id, patch);
     toast(`已刷新《${b.title}》`);
-    await Promise.all([refresh(false), refreshSidebar()]);
+    await Promise.all([refresh(false, false), refreshSidebar()]);
   } catch (e) {
     toast((e as Error).message, 'error');
   } finally {
@@ -61,12 +61,27 @@ function statusBadge(b: Book): HTMLElement {
   );
 }
 
+// 本地更新书籍字段并触发重绘（避免全局骨架屏刷新）
+function patchBookLocal(id: number, patch: Partial<Book>) {
+  const idx = state.books.findIndex((book) => book.id === id);
+  if (idx !== -1) {
+    state.books[idx] = { ...state.books[idx], ...patch };
+    setState({ books: [...state.books] });
+  }
+  const allIdx = state.allBooks.findIndex((book) => book.id === id);
+  if (allIdx !== -1) {
+    state.allBooks[allIdx] = { ...state.allBooks[allIdx], ...patch };
+    setState({ allBooks: [...state.allBooks] });
+  }
+}
+
 // 快捷改状态
 async function quickStatus(b: Book, status: string) {
   try {
     await api.updateBook(b.id, { status: status as Book['status'] });
     toast('状态已更新');
-    await refresh();
+    patchBookLocal(b.id, { status: status as Book['status'] });
+    await Promise.all([refresh(false, false), refreshSidebar()]);
   } catch (e) {
     toast((e as Error).message, 'error');
   }
@@ -75,9 +90,11 @@ async function quickStatus(b: Book, status: string) {
 // 快捷收藏/取消收藏
 export async function quickFavorite(b: Book) {
   try {
-    await api.updateBook(b.id, { favorite: b.favorite ? 0 : 1 });
+    const next = b.favorite ? 0 : 1;
+    await api.updateBook(b.id, { favorite: next });
     toast(b.favorite ? '已取消收藏' : '已收藏');
-    await refresh();
+    patchBookLocal(b.id, { favorite: next });
+    await Promise.all([refresh(false, false), refreshSidebar()]);
   } catch (e) {
     toast((e as Error).message, 'error');
   }
@@ -244,18 +261,19 @@ function renderSkeletonTable(): HTMLElement {
   const tbody = h('tbody');
   for (let i = 0; i < 5; i++) {
     const row = h('tr', { class: 'border-b border-[var(--border-subtle)] last:border-0' },
-      h('td', { class: 'px-4 py-4' }, h('div', { class: 'w-10 h-14 rounded-md skeleton' })),
-      h('td', { class: 'px-4 py-4' },
+      h('td', { class: 'px-4 py-2' }, h('div', { class: 'w-10 h-14 rounded-md skeleton' })),
+      h('td', { class: 'px-4 py-2' },
         h('div', { class: 'space-y-2' },
           h('div', { class: 'h-3 w-32 rounded skeleton' }),
           h('div', { class: 'h-2.5 w-24 rounded skeleton' }),
         ),
       ),
-      h('td', { class: 'px-4 py-4' }, h('div', { class: 'h-3 w-20 rounded skeleton' })),
-      h('td', { class: 'px-4 py-4' }, h('div', { class: 'h-3 w-16 rounded skeleton' })),
-      h('td', { class: 'px-4 py-4' }, h('div', { class: 'h-3 w-16 rounded skeleton' })),
-      h('td', { class: 'px-4 py-4' }, h('div', { class: 'h-3 w-20 rounded skeleton' })),
-      h('td', { class: 'px-4 py-4 text-right' }, h('div', { class: 'inline-block h-3 w-8 rounded skeleton' })),
+      h('td', { class: 'px-4 py-2' }, h('div', { class: 'h-3 w-20 rounded skeleton' })),
+      h('td', { class: 'px-4 py-2' }, h('div', { class: 'h-3 w-16 rounded skeleton' })),
+      h('td', { class: 'px-4 py-2' }, h('div', { class: 'h-3 w-16 rounded skeleton' })),
+      h('td', { class: 'px-4 py-2' }, h('div', { class: 'h-3 w-20 rounded skeleton' })),
+      h('td', { class: 'px-4 py-2' }, h('div', { class: 'h-3 w-20 rounded skeleton' })),
+      h('td', { class: 'px-4 py-2 text-right' }, h('div', { class: 'inline-block h-3 w-8 rounded skeleton' })),
     );
     tbody.append(row);
   }
@@ -344,7 +362,7 @@ function pageBtn(label: string, enabled: boolean, onclick: () => void): HTMLElem
 function renderBookRow(b: Book): HTMLTableRowElement {
   const meta = STATUS_META[b.status] ?? STATUS_META.unread;
   const row = h('tr', { class: 'table-row cursor-pointer', onclick: () => renderDrawer(b) });
-  const coverCell = h('td', { class: 'px-4 py-2' },
+  const coverCell = h('td', { class: 'px-4 py-2 align-middle' },
     h('div', { class: 'w-10 h-14 rounded-md overflow-hidden shadow-sm' }, coverEl(b, 'table')),
   );
   const actions = h('div', { class: 'inline-flex items-center gap-1' },
@@ -369,7 +387,7 @@ function renderBookRow(b: Book): HTMLTableRowElement {
           onCancel: () => editRow.replaceWith(renderBookRow(b)),
           onSaved: () => {
             editRow.replaceWith(renderBookRow(b));
-            void refresh(false);
+            void refresh(false, false);
             void refreshSidebar();
           },
         });
@@ -379,18 +397,18 @@ function renderBookRow(b: Book): HTMLTableRowElement {
   );
   row.append(
     coverCell,
-    h('td', { class: 'px-4 py-2' },
+    h('td', { class: 'px-4 py-2 align-middle' },
       h('div', { class: 'font-medium text-sm font-display text-[var(--text-primary)]' }, b.title),
       b.subtitle ? h('div', { class: 'text-xs text-[var(--text-muted)] mt-0.5' }, b.subtitle) : null,
     ),
-    h('td', { class: 'px-4 py-2 text-sm text-[var(--text-secondary)]' }, b.author ?? ''),
-    h('td', { class: 'px-4 py-2' },
+    h('td', { class: 'px-4 py-2 align-middle text-sm text-[var(--text-secondary)]' }, b.author ?? ''),
+    h('td', { class: 'px-4 py-2 align-middle' },
       h('span', { class: `inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${meta.bg} ${meta.text}` },
         h('span', { class: `w-1.5 h-1.5 rounded-full ${meta.dot}` }),
         STATUS_LABEL[b.status] ?? b.status,
       ),
     ),
-    h('td', { class: 'px-4 py-2' },
+    h('td', { class: 'px-4 py-2 align-middle' },
       b.category_name
         ? h('span', { class: 'inline-flex items-center gap-1.5 text-xs text-[var(--text-secondary)]' },
             h('span', { class: 'w-2 h-2 rounded-sm', style: `background:${b.category_color ?? '#8a8274'}` }),
@@ -398,13 +416,13 @@ function renderBookRow(b: Book): HTMLTableRowElement {
           )
         : '',
     ),
-    h('td', { class: 'px-4 py-2' }, renderStars(b.rating)),
-    h('td', { class: 'px-4 py-2' },
+    h('td', { class: 'px-4 py-2 align-middle' }, renderStars(b.rating)),
+    h('td', { class: 'px-4 py-2 align-middle' },
       b.douban_url
         ? h('a', { href: b.douban_url, target: '_blank', rel: 'noreferrer', class: 'text-xs text-[var(--accent)] hover:underline break-all', onclick: (e: Event) => e.stopPropagation() }, mainDomain(b.douban_url))
         : '',
     ),
-    h('td', { class: 'px-4 py-2 text-right whitespace-nowrap' }, actions),
+    h('td', { class: 'px-4 py-2 align-middle text-right whitespace-nowrap' }, actions),
   );
   return row;
 }
@@ -415,14 +433,14 @@ function renderTable(): HTMLElement {
   const table = h('table', { class: 'w-full text-sm' });
   const thead = h('thead');
   thead.append(h('tr', { class: 'border-b border-[var(--border-default)] text-left text-xs text-[var(--text-muted)] uppercase tracking-wider' },
-    h('th', { class: 'px-4 py-2 font-medium' }, '封面'),
-    h('th', { class: 'px-4 py-2 font-medium' }, '书名'),
-    h('th', { class: 'px-4 py-2 font-medium' }, '作者'),
-    h('th', { class: 'px-4 py-2 font-medium' }, '状态'),
-    h('th', { class: 'px-4 py-2 font-medium' }, '分类'),
-    h('th', { class: 'px-4 py-2 font-medium' }, '评分'),
-    h('th', { class: 'px-4 py-2 font-medium' }, '豆瓣链接'),
-    h('th', { class: 'px-4 py-2 font-medium text-right' }, '操作'),
+    h('th', { class: 'px-4 py-2 font-medium align-middle' }, '封面'),
+    h('th', { class: 'px-4 py-2 font-medium align-middle' }, '书名'),
+    h('th', { class: 'px-4 py-2 font-medium align-middle' }, '作者'),
+    h('th', { class: 'px-4 py-2 font-medium align-middle' }, '状态'),
+    h('th', { class: 'px-4 py-2 font-medium align-middle' }, '分类'),
+    h('th', { class: 'px-4 py-2 font-medium align-middle' }, '评分'),
+    h('th', { class: 'px-4 py-2 font-medium align-middle' }, '豆瓣链接'),
+    h('th', { class: 'px-4 py-2 font-medium align-middle text-right' }, '操作'),
   ));
   const tbody = h('tbody');
   const books = state.books;

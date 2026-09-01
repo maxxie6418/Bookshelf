@@ -238,21 +238,31 @@ async function renderAgentKeysSection(container: HTMLElement) {
     }, '生成新 Key');
 
     container.append(
-      h('div', { class: 'text-sm text-[var(--text-secondary)] leading-relaxed mb-2' },
-        '外部 AI 通过 Bearer Key 调用 /api/agent/* 管理你的书架。按下面三步配置即可：'),
-
-      h('div', { class: 'text-xs font-medium text-[var(--text-muted)] mb-1.5' }, 'Step 1 · 复制系统提示词，发给 AI'),
-      copyablePrompt('系统提示词（接入说明）', promptSetupBody()),
-
-      h('div', { class: 'text-xs font-medium text-[var(--text-muted)] mb-1.5 mt-5' }, 'Step 2 · 复制接口地址'),
-      copyableValue('接口 Base URL', `${window.location.origin}/api/agent`),
-
-      h('div', { class: 'text-xs font-medium text-[var(--text-muted)] mb-1.5 mt-5' }, 'Step 3 · 生成并复制 Agent Key'),
-      items,
-      h('div', { class: 'flex gap-2 mt-3' }, label, addBtn),
-
-      h('div', { class: 'text-xs text-[var(--text-muted)] leading-relaxed mt-6 border-t border-[var(--border-subtle)] pt-3' },
-        '能力与限制：删除仅软删至回收站，禁止 AI 操作回收站；写操作限频 10 次/10 分钟，删除限频 10 次/1 小时。'),
+      // Step 1
+      h('div', { class: 'mb-5' },
+        h('div', { class: 'flex items-center gap-2 mb-2' },
+          h('span', { class: 'w-5 h-5 rounded-full bg-[var(--accent)]/10 text-[var(--accent)] text-[10px] font-bold flex items-center justify-center' }, '1'),
+          h('span', { class: 'text-xs font-medium text-[var(--text-muted)]' }, '复制系统提示词，发给 AI'),
+        ),
+        copyablePrompt('系统提示词（接入说明）', promptSetupBody()),
+      ),
+      // Step 2
+      h('div', { class: 'mb-5' },
+        h('div', { class: 'flex items-center gap-2 mb-2' },
+          h('span', { class: 'w-5 h-5 rounded-full bg-[var(--accent)]/10 text-[var(--accent)] text-[10px] font-bold flex items-center justify-center' }, '2'),
+          h('span', { class: 'text-xs font-medium text-[var(--text-muted)]' }, '复制接口地址'),
+        ),
+        copyableValue('接口 Base URL', `${window.location.origin}/api/agent`),
+      ),
+      // Step 3
+      h('div', {},
+        h('div', { class: 'flex items-center gap-2 mb-2' },
+          h('span', { class: 'w-5 h-5 rounded-full bg-[var(--accent)]/10 text-[var(--accent)] text-[10px] font-bold flex items-center justify-center' }, '3'),
+          h('span', { class: 'text-xs font-medium text-[var(--text-muted)]' }, '生成并复制 Agent Key'),
+        ),
+        items,
+        h('div', { class: 'flex gap-2 mt-3' }, label, addBtn),
+      ),
     );
   };
 
@@ -288,8 +298,19 @@ export function openTaxonomySettings() {
 export function openAgentSettings() {
   const wrap = h('div', {});
   const content = h('div', { class: 'space-y-5' },
-    h('h3', { class: 'text-sm font-medium text-[var(--text-primary)]' }, 'AI Agent Keys'),
-    wrap,
+    // 顶部说明卡片
+    h('div', { class: 'rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4' },
+      h('h3', { class: 'text-sm font-medium text-[var(--text-primary)] mb-2' }, 'AI Agent 接入说明'),
+      h('p', { class: 'text-xs text-[var(--text-secondary)] leading-relaxed' },
+        '外部 AI 可通过 HTTP 调用你的书架 API 来查询和管理藏书。按下方三步配置即可：复制系统提示词发给 AI → 复制接口地址 → 生成 Agent Key。'),
+      h('p', { class: 'text-xs text-[var(--text-muted)] mt-2' },
+        '能力与限制：删除仅软删至回收站，禁止 AI 操作回收站；写操作限频 10 次/10 分钟，删除限频 10 次/1 小时。'),
+    ),
+    // Keys 管理区
+    h('div', { class: 'rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4' },
+      h('h3', { class: 'text-sm font-medium text-[var(--text-primary)] mb-3' }, 'Agent Keys'),
+      wrap,
+    ),
   );
   modal('AI Agent 接入', content, undefined, 'max-w-3xl');
   void renderAgentKeysSection(wrap);
@@ -307,23 +328,40 @@ export function openSettings() {
     void refresh();
   };
 
-  const dataRow = h('div', { class: 'flex items-center gap-2 flex-wrap' },
-    renderImportExportButtons(),
-    h('button', {
-      class: 'inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-[var(--border-default)] text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] transition-colors',
-      title: '管理分类与标签（新增 / 改名 / 删除）',
-      onclick: openTaxonomySettings,
-    }, '分类/标签'),
-    h('button', {
-      class: 'inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-[var(--border-default)] text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] transition-colors',
-      title: '回收站（管理已删除的书籍）',
-      onclick: openTrash,
-    }, iconTrash(16), '回收站'),
+  // 数据管理：导入导出独立卡片，与其他管理操作分开
+  const importExportCard = h('div', { class: 'rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4' },
+    h('div', { class: 'flex items-center justify-between mb-3' },
+      h('h4', { class: 'text-sm font-medium text-[var(--text-primary)]' }, '导入 / 导出'),
+      h('span', { class: 'text-xs text-[var(--text-muted)]' }, 'CSV 格式'),
+    ),
+    h('div', { class: 'flex items-center gap-2 flex-wrap' }, renderImportExportButtons()),
+    h('p', { class: 'text-xs text-[var(--text-secondary)] mt-3' }, '导出「模版」获取空白表头、「内容」导出全部藏书；导入支持 CSV，预览后逐批写入。'),
+  );
+
+  const manageCard = h('div', { class: 'rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4' },
+    h('div', { class: 'flex items-center justify-between mb-3' },
+      h('h4', { class: 'text-sm font-medium text-[var(--text-primary)]' }, '分类与回收站'),
+      h('span', { class: 'text-xs text-[var(--text-muted)]' }, '数据维护'),
+    ),
+    h('div', { class: 'flex items-center gap-2 flex-wrap' },
+      h('button', {
+        class: 'inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-[var(--border-default)] text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] transition-colors',
+        title: '管理分类与标签（新增 / 改名 / 删除）',
+        onclick: openTaxonomySettings,
+      }, '分类 / 标签'),
+      h('button', {
+        class: 'inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-[var(--border-default)] text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] transition-colors',
+        title: '回收站（管理已删除的书籍）',
+        onclick: openTrash,
+      }, iconTrash(16), '回收站'),
+    ),
+    h('p', { class: 'text-xs text-[var(--text-secondary)] mt-3' }, '分类删除后关联书籍变为未分类；标签删除后从关联书籍上移除。'),
   );
 
   const content = h('div', { class: 'space-y-5' },
-    h('div', {},
-      h('h3', { class: 'text-sm font-medium text-[var(--text-primary)] mb-2' }, '修改口令'),
+    // 口令管理卡片
+    h('div', { class: 'rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4' },
+      h('h3', { class: 'text-sm font-medium text-[var(--text-primary)] mb-3' }, '修改口令'),
       oldPwd, newPwd, newPwd2,
       h('button', {
         class: 'mt-3 px-4 py-2 rounded-xl bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text)] text-sm font-medium transition-colors',
@@ -342,15 +380,16 @@ export function openSettings() {
         },
       }, '保存新口令'),
     ),
+    // 数据管理：两列布局（桌面端并排，移动端堆叠）
     h('div', {},
-      h('h3', { class: 'text-sm font-medium text-[var(--text-primary)] mb-2' }, '数据管理'),
-      dataRow,
-      h('p', { class: 'text-xs text-[var(--text-secondary)] mt-2' }, '导出「模版」获取空白表头、「内容」导出全部藏书；导入支持 CSV，二次确认后写入。'),
+      h('h3', { class: 'text-sm font-medium text-[var(--text-primary)] mb-3' }, '数据管理'),
+      h('div', { class: 'grid grid-cols-1 sm:grid-cols-2 gap-4' }, importExportCard, manageCard),
     ),
-    h('div', { class: 'text-xs text-[var(--text-secondary)] leading-relaxed' },
-      h('h3', { class: 'text-sm font-medium text-[var(--text-primary)] mb-1' }, 'AI Agent'),
-      h('p', {}, '外部 AI 通过 Bearer Key 调用 /api/agent/* 查询/新增/编辑/删除书籍，Key 在「Agent」面板管理，可随时复制完整明文。'),
-      h('p', { class: 'mt-1' }, `当前登录：${state.user?.username ?? 'admin'}`),
+    // AI Agent 说明卡片
+    h('div', { class: 'rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4' },
+      h('h3', { class: 'text-sm font-medium text-[var(--text-primary)] mb-2' }, 'AI Agent'),
+      h('p', { class: 'text-xs text-[var(--text-secondary)] leading-relaxed' }, '外部 AI 通过 Bearer Key 调用 /api/agent/* 查询/新增/编辑/删除书籍，Key 在「Agent」面板管理，可随时复制完整明文。'),
+      h('p', { class: 'text-xs text-[var(--text-muted)] mt-2' }, `当前登录：${state.user?.username ?? 'admin'}`),
     ),
   );
 

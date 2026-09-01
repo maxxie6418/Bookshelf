@@ -93,21 +93,21 @@ function editableMemoBlock(
           h('button', {
             class: 'px-3 py-1.5 rounded-lg text-xs font-medium bg-[var(--accent)] text-[var(--accent-text)] hover:bg-[var(--accent-hover)] transition-colors',
             onclick: async () => {
-              const value = ta.value.trim();
-              if (value.length > maxLen) { toast(`最多 ${maxLen} 字`, 'error'); return; }
-              try {
-                await api.updateBook(book.id, { [memoKey]: value || null });
-                const updated = await api.getBook(book.id);
-                toast('已保存');
-                book = updated;
-                await refresh();
-                await refreshSidebar();
-                editEl.classList.add('hidden');
-                renderView();
-              } catch (e) {
-                toast((e as Error).message, 'error');
-              }
-            },
+            const value = ta.value.trim();
+            if (value.length > maxLen) { toast(`最多 ${maxLen} 字`, 'error'); return; }
+            try {
+              await api.updateBook(book.id, { [memoKey]: value || null });
+              const updated = await api.getBook(book.id);
+              toast('已保存');
+              book = updated;
+              await refresh(false, false);
+              await refreshSidebar();
+              editEl.classList.add('hidden');
+              renderView();
+            } catch (e) {
+              toast((e as Error).message, 'error');
+            }
+          },
           }, '保存'),
         ),
       ),
@@ -162,10 +162,10 @@ export function renderDrawer(book: Book) {
           h('span', { class: `w-2 h-2 rounded-full ${meta.dot}` }),
           STATUS_LABEL[current.status],
         ),
-        current.category_name && h('span', { class: 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm bg-[var(--bg-surface-hover)] text-[var(--text-secondary)] border border-[var(--border-subtle)]' },
+        current.category_name ? h('span', { class: 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm bg-[var(--bg-surface-hover)] text-[var(--text-secondary)] border border-[var(--border-subtle)]' },
           h('span', { class: 'w-2 h-2 rounded-sm', style: `background:${current.category_color ?? '#8a8274'}` }),
           current.category_name,
-        ),
+        ) : null,
         current.rating ? renderStars(current.rating, 'w-4 h-4') : null,
       ),
       // 书籍本身的属性：统一容器框起来（含简介，超 6 行滚动浏览）
@@ -218,11 +218,11 @@ export function renderDrawer(book: Book) {
           title: current.favorite ? '取消收藏' : '收藏',
           onclick: async () => {
             try {
-              await api.updateBook(current.id, { favorite: current.favorite ? 0 : 1 });
-              const updated = await api.getBook(current.id);
+              const next = current.favorite ? 0 : 1;
+              await api.updateBook(current.id, { favorite: next });
               toast(current.favorite ? '已取消收藏' : '已收藏');
-              current = updated;
-              await refresh();
+              current = { ...current, favorite: next };
+              await refresh(false, false);
               renderDisplayFooter(current);
             } catch (e) {
               toast((e as Error).message, 'error');
@@ -303,7 +303,7 @@ export function renderDrawer(book: Book) {
             await api.updateBook(current.id, payload);
             const updated = await api.getBook(current.id);
             toast('已更新');
-            await refresh();
+            await refresh(false, false);
             await refreshSidebar();
             renderDisplay(updated);
           } catch (e) {
