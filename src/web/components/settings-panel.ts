@@ -1,7 +1,8 @@
-// 设置面板：修改口令 / 数据管理（导入导出 / 回收站）
+// 设置面板：修改口令 / 数据管理（导入导出 / 回收站 / 存储清理）
 import { api } from '../api';
 import { setState, state } from '../state';
-import { h, toast, modal, iconTrash, iconCopy, confirmDialog } from '../ui';
+import type { StorageCheckResult } from '../types';
+import { h, toast, modal, iconTrash, iconCopy, iconSearch, iconRefresh, confirmDialog } from '../ui';
 import { renderImportExportButtons } from './import-export';
 import { renderTaxonomyManage } from './manage-taxonomy';
 import { refresh } from '../refresh';
@@ -316,6 +317,97 @@ export function openAgentSettings() {
   void renderAgentKeysSection(wrap);
 }
 
+function formatBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+// 存储检查与清理：列出 KV 元数据缓存、R2 封面的孤儿资源（不再被任何书引用），可手动清理
+export function openStorageSettings() {
+  const wrap = h('div', { class: 'space-y-4' });
+
+  const run = async () => {
+    wrap.replaceChildren(h('p', { class: 'text-sm text-[var(--text-muted)]' }, '正在检查，请稍候…'));
+    let result: StorageCheckResult;
+    try {
+      result = await api.checkStorage();
+    } catch (e) {
+      wrap.replaceChildren(h('p', { class: 'text-sm text-red-500' }, (e as Error).message));
+      return;
+    }
+
+    const kvOrphans = result.kv.orphans;
+    const coverOrphans = result.covers.orphans;
+    const totalOrphans = kvOrphans.length + coverOrphans.length;
+
+    const section = (title: string, desc: string, items: { key: string; line2: string }[]): HTMLElement =>
+      h('div', { class: 'rounded-xl border border-[var(--border-default)] overflow-hidden' },
+        h('div', { class: 'flex items-center justify-between gap-3 px-4 py-2.5 border-b border-[var(--border-subtle)] bg-[var(--bg-surface-hover)]/40' },
+          h('div', { class: 'text-sm font-medium text-[var(--text-primary)]' }, title),
+          h('span', { class: 'text-xs text-[var(--text-muted)]' }, `${items.length} 个孤儿 / 共 ${desc}`),
+        ),
+        items.length
+          ? h('ul', { class: 'max-h-44 overflow-y-auto divide-y divide-[var(--border-subtle)]' },
+              ...items.map((it) =>
+                h('li', { class: 'px-4 py-2 flex items-baseline justify-between gap-3' },
+                  h('span', { class: 'font-mono text-xs text-[var(--text-secondary)] truncate', title: it.key }, it.key),
+                  h('span', { class: 'text-xs text-[var(--text-muted)] shrink-0' }, it.line2),
+                ),
+              ),
+            )
+          : h('p', { class: 'px-4 py-3 text-xs text-[var(--text-muted)]' }, '无孤儿资源'),
+      );
+
+    const kvSection = section('KV 元数据缓存', `${result.kv.total} 条缓存`, kvOrphans.map((o) => ({
+      key: o.key,
+      line2: [o.title, o.cached_at ? new Date(o.cached_at).toLocaleDateString() : ''].filter(Boolean).join(' · '),
+    })));
+    const coverSection = section('R2 封面', `${result.covers.total} 个文件`, coverOrphans.map((o) => ({
+      key: o.key,
+      line2: [formatBytes(o.size), o.uploaded ? new Date(o.uploaded).toLocaleDateString() : ''].filter(Boolean).join(' · '),
+    })));
+
+    const checkBtn = h('button', {
+      class: 'inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-[var(--border-default)] text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] transition-colors',
+      onclick: () => void run(),
+    }, iconRefresh(16), '重新检查');
+
+    const cleanBtn = h('button', {
+      class: 'inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-red-500/10 border border-red-500/30 text-sm text-red-500 hover:bg-red-500/20 transition-colors disabled:opacity-40 disabled:pointer-events-none',
+      disabled: totalOrphans === 0,
+      onclick: async () => {
+        if (!(await confirmDialog(`将删除 ${kvOrphans.length} 条缓存、${coverOrphans.length} 个封面孤儿资源，且不影响任何藏书。确定清理？`))) return;
+        try {
+          const res = await api.cleanupStorage({ kv: true, covers: true });
+          toast(`已清理：缓存 ${res.deletedKv} 条、封面 ${res.deletedCovers} 个`);
+          await run();
+        } catch (e) {
+          toast((e as Error).message, 'error');
+        }
+      },
+    }, iconTrash(16), '清理孤儿资源');
+
+    const actions = h('div', { class: 'flex items-center gap-2 flex-wrap' }, checkBtn, cleanBtn);
+    wrap.replaceChildren(
+      h('div', { class: 'space-y-3' }, kvSection, coverSection),
+      h('div', { class: 'flex items-center justify-between gap-3' },
+        h('p', { class: 'text-xs text-[var(--text-muted)]' },
+          totalOrphans ? `发现 ${totalOrphans} 个孤儿资源` : '当前无孤儿资源，KV 与 R2 均整洁'),
+        actions,
+      ),
+    );
+  };
+
+  const content = h('div', {},
+    h('p', { class: 'text-xs text-[var(--text-secondary)] leading-relaxed mb-4' },
+      '彻底删除书籍或清空回收站时，系统会自动联动清理其元数据缓存与封面；这里用于检查历史遗留的孤儿资源并手动清理。'),
+    wrap,
+  );
+  modal('存储检查与清理', content, undefined, 'max-w-2xl');
+  void run();
+}
+
 export function openSettings() {
   const oldPwd = h('input', { type: 'password', placeholder: '当前口令（可选校验）', class: inputCls });
   const newPwd = h('input', { type: 'password', placeholder: '新口令（至少 6 位）', class: inputCls + ' mt-3' });
@@ -358,6 +450,19 @@ export function openSettings() {
     h('p', { class: 'text-xs text-[var(--text-secondary)] mt-3' }, '分类删除后关联书籍变为未分类；标签删除后从关联书籍上移除。'),
   );
 
+  const storageCard = h('div', { class: 'rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4' },
+    h('div', { class: 'flex items-center justify-between mb-3' },
+      h('h4', { class: 'text-sm font-medium text-[var(--text-primary)]' }, '存储检查与清理'),
+      h('span', { class: 'text-xs text-[var(--text-muted)]' }, 'KV / R2'),
+    ),
+    h('button', {
+      class: 'inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-[var(--border-default)] text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] transition-colors',
+      title: '检查并手动清理不再被任何藏书引用的元数据缓存与封面',
+      onclick: openStorageSettings,
+    }, iconSearch(16), '检查存储'),
+    h('p', { class: 'text-xs text-[var(--text-secondary)] mt-3' }, '检查并清理不再被任何藏书引用的豆瓣元数据缓存与封面资源。'),
+  );
+
   const content = h('div', { class: 'space-y-5' },
     // 口令管理卡片
     h('div', { class: 'rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4' },
@@ -383,7 +488,7 @@ export function openSettings() {
     // 数据管理：两列布局（桌面端并排，移动端堆叠）
     h('div', {},
       h('h3', { class: 'text-sm font-medium text-[var(--text-primary)] mb-3' }, '数据管理'),
-      h('div', { class: 'grid grid-cols-1 sm:grid-cols-2 gap-4' }, importExportCard, manageCard),
+      h('div', { class: 'grid grid-cols-1 sm:grid-cols-2 gap-4' }, importExportCard, manageCard, storageCard),
     ),
     // AI Agent 说明卡片
     h('div', { class: 'rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4' },

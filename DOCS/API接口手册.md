@@ -1,10 +1,10 @@
 # API 接口手册
 
-- **文档版本**：v1.4
+- **文档版本**：v1.5
 - **文档状态**：草案
 - **目的和适用范围**：书单管理工具（Bookshelf）全部 HTTP 接口的路径、鉴权、请求参数、响应结构与错误约定。适用于前端联调、后端实现与测试评审。
 - **权威级别**：模块规则
-- **最后更新日期**：2026-08-31
+- **最后更新日期**：2026-09-01
 
 ## 修改记录
 
@@ -14,6 +14,7 @@
 | v1.1 | - | 2026-08-17 | 评审修订：软删+回收站接口(3.5-3.8)、列表 trash 参数与排序枚举、book 提交字段与 tags 按名 upsert、AI 过滤 JSON schema+写日志、导出不含回收站、分类/标签 count 仅计在库 | gstack-lead |
 | v1.2 | 0.1.0 | 2026-08-19 | 新增 6A 节：AI Agent（Bearer Key）端点约定与 `POST /api/agent/books/metadata/fetch` 抓取端点 | gstack-lead |
 | v1.3 | - | 2026-08-31 | 书籍支持 `shelved` 状态（4 态）与 `favorite` 收藏（0/1）；列表新增 `favorite=1` 过滤；Book 结构含 `favorite`；创建可传 `favorite`/`created_at`（导入保留录入时间）；CSV 导出/导入新增「收藏」「录入时间」列；Agent 过滤 JSON 支持 shelved | gstack-lead |
+| v1.4 | 1.1.0 | 2026-09-01 | 性能优化：新增 `GET /api/books/stats` 聚合统计（3.9）；metadata/fetch 新增 `force` 参数（6.1、6A.2）；新增 `GET /api/storage/check` 与 `POST /api/storage/cleanup` 存储检查/清理（11）；彻底删除/清空回收站联动清理 KV 元数据缓存与 R2 封面（3.8） | gstack-lead |
 
 ---
 
@@ -88,9 +89,14 @@
 
 ### 3.8 DELETE /api/books/trash/:id（彻底删除，二次确认）
 - 鉴权：登录
-- 说明：**物理删除**，不可逆；`book_tags` 因 `ON DELETE CASCADE` 级联清除；封面若落 R2 一并清理。前端需在回收站对"彻底删除"做二次确认弹窗。
+- 说明：**物理删除**，不可逆；`book_tags` 因 `ON DELETE CASCADE` 级联清除；若该书引用的豆瓣元数据缓存（KV）与封面（R2）不再被任何书引用（含回收站），一并联动清理。
 - 成功 `204`。
-- 可选 `DELETE /api/books/trash`（清空回收站全部），同样需二次确认。
+- 可选 `DELETE /api/books/trash`（清空回收站全部），同样需二次确认；清空后仅存活的书籍仍引用的资源会被保留。
+
+### 3.9 GET /api/books/stats（侧栏聚合统计）
+- 鉴权：登录
+- 说明：一次返回侧栏所需全部计数与分类/标签列表，取代前端拉全量列表后本地统计（书架较大时显著降低首屏请求量）。必须在 `/:id` 之前匹配（已由路由注册顺序保证）。
+- 成功 `200`：`{ "data": { "total": 42, "favorites": 3, "trash": 2, "byStatus": { "unread": 10, "reading": 5, "finished": 20, "shelved": 7 }, "categories": [ { "id": 1, "name": "科幻", "color": "#8b5cf6", "count": 2 } ], "tags": [ { "id": 1, "name": "经典", "count": 2 } ] } }`
 
 ## 4. 分类（categories）
 
@@ -126,9 +132,9 @@
 
 ### 6.1 POST /api/books/metadata/fetch
 - 鉴权：登录
-- 请求：`{ "url"?: "https://book.douban.com/...", "isbn"?: "9787..." }`（二选一）
+- 请求：`{ "url"?: "https://book.douban.com/...", "isbn"?: "9787...", "force"?: true }`（url/isbn 二选一；`force` 省略时命中 KV 缓存（TTL 24h）立即返回，置 `true` 绕过缓存强制重新抓取）
 - 成功 `200`：`{ "data": { "title","subtitle","author","translator","publisher","publish_year","isbn","page_count","description","cover_url","douban_rating","source":"douban|neodb|openlibrary|googlebooks|manual" } }`
-- 说明：走兜底链（豆瓣→NeoDB→Open Library→Google Books→手动）；失败 `400` 并提示"获取链接失败，请改用粘贴文本导入"。
+- 说明：走兜底链（豆瓣→NeoDB→Open Library→Google Books→手动）；失败 `400` 并提示"获取链接失败，请改用粘贴文本导入"。抓取结果回写 KV 缓存（subject 键与 isbn 键），封面已存在时复用 R2 不重复下载。
 
 ## 6A. AI Agent（Bearer Key）
 
@@ -139,7 +145,7 @@
 
 ### 6A.2 POST /api/agent/books/metadata/fetch
 - 鉴权：Bearer Agent Key；写限频
-- 请求：`{ "url"?: "https://book.douban.com/...", "isbn"?: "9787..." }`（二选一）
+- 请求：`{ "url"?: "https://book.douban.com/...", "isbn"?: "9787...", "force"?: true }`（url/isbn 二选一；`force` 语义同 6.1）
 - 成功 `200`：`{ "data": { "title","subtitle","author","translator","publisher","publish_year","isbn","page_count","description","cover_url","douban_rating","douban_url","source":"douban" } }`（`cover_url` 为站内 R2 代理路径或原豆瓣图）
 - 说明：供外部 AI 拿到豆瓣链接/ISBN 后抓取元数据回填，再以结果作为 `POST /api/agent/books` 的创建字段；不直接入库。失败 `400`。
 
@@ -177,7 +183,20 @@
 - 鉴权：公开
 - 成功 `200`：`{ "ok": true }`。
 
-## 11. 错误码表
+## 11. 存储资源检查与清理（storage）
+
+### 11.1 GET /api/storage/check
+- 鉴权：登录
+- 说明：扫描 KV（前缀 `meta:douban:`）元数据缓存与 R2 封面，对照全量书籍（含回收站）的引用关系，标记不再被任何书引用的孤儿资源。适用于排查历史遗留资源与清理前预览。
+- 成功 `200`：`{ "data": { "kv": { "total": 12, "orphans": [ { "key": "meta:douban:subject:1007305", "cached_at": "2026-09-01T03:58:21.484Z", "title": "红楼梦" } ] }, "covers": { "total": 9, "orphans": [ { "key": "9787020002207.jpg", "size": 75383, "uploaded": "2026-09-01T03:58:21.548Z" } ] } } }`
+
+### 11.2 POST /api/storage/cleanup
+- 鉴权：登录
+- 请求：`{ "kv"?: true, "covers"?: true }`（按需选择清理类别，缺省不清理）
+- 说明：重新执行孤儿检测后批量删除对应类别资源；幂等（重复执行无副作用），单键删除失败不中断整体。
+- 成功 `200`：`{ "data": { "deletedKv": 1, "deletedCovers": 2 } }`
+
+## 12. 错误码表
 
 | code | HTTP | 含义 |
 |------|------|------|

@@ -19,11 +19,13 @@ export async function storeCover(
   opts: { isbn?: string | null } = {},
 ): Promise<string | null> {
   try {
+    const key = coverKey(url, opts.isbn);
+    const existing = await bucket.head(key);
+    if (existing) return `/api/covers/${key}`;
     const res = await fetchWithRetry(url, { timeoutMs: 15000, referer: 'https://book.douban.com/' });
     if (!res.ok) return null;
     const buf = await res.arrayBuffer();
     const type = res.headers.get('Content-Type') || 'image/jpeg';
-    const key = coverKey(url, opts.isbn);
     await bucket.put(key, buf, { httpMetadata: { contentType: type }, customMetadata: { src: url } });
     return `/api/covers/${key}`;
   } catch {

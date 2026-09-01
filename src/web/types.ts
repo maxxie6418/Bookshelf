@@ -56,6 +56,37 @@ export interface BookListResult {
   total: number;
 }
 
+export interface Stats {
+  total: number;
+  favorites: number;
+  trash: number;
+  byStatus: Record<string, number>;
+  categories: Category[];
+  tags: Tag[];
+}
+
+export interface StorageKvOrphan {
+  key: string;
+  cached_at: string;
+  title: string | null;
+}
+
+export interface StorageCoverOrphan {
+  key: string;
+  size: number;
+  uploaded: string | null;
+}
+
+export interface StorageCheckResult {
+  kv: { total: number; orphans: StorageKvOrphan[] };
+  covers: { total: number; orphans: StorageCoverOrphan[] };
+}
+
+export interface StorageCleanupResult {
+  deletedKv: number;
+  deletedCovers: number;
+}
+
 export interface Filters {
   status?: string;
   favorite?: boolean;

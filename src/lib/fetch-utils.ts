@@ -1,5 +1,3 @@
-import type { KVNamespace } from '@cloudflare/workers-types';
-
 const USER_AGENTS = [
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
@@ -14,7 +12,7 @@ function pickUA(): string {
 // 简单的退避重试 fetch：随机 UA + Referer + 超时，失败时按 backoff 重试 3 次。
 export async function fetchWithRetry(
   url: string,
-  opts: { kv?: KVNamespace; referer?: string; timeoutMs?: number } = {},
+  opts: { referer?: string; timeoutMs?: number } = {},
 ): Promise<Response> {
   const timeoutMs = opts.timeoutMs ?? 10000;
   const attempts = 3;

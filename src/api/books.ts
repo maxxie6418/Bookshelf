@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { Env } from '../env';
 import { requireAuth } from '../lib/guard';
 import * as books from '../lib/books';
+import { getStats } from '../lib/stats';
 
 export const booksRoutes = new Hono<{ Bindings: Env }>();
 booksRoutes.use(requireAuth);
@@ -63,6 +64,12 @@ booksRoutes.get('/', async (c) => {
   return c.json({ data });
 });
 
+// GET /api/books/stats（侧栏聚合统计）——必须在 /:id 之前注册
+booksRoutes.get('/stats', async (c) => {
+  const stats = await getStats(c.env.DB);
+  return c.json({ data: stats });
+});
+
 // POST /api/books（新增）
 booksRoutes.post('/', async (c) => {
   const body = await c.req.json().catch(() => null);
@@ -89,14 +96,14 @@ booksRoutes.get('/trash', async (c) => {
 
 // DELETE /api/books/trash（清空回收站）——静态段优先于 /:id
 booksRoutes.delete('/trash', async (c) => {
-  const count = await books.clearTrash(c.env.DB);
+  const count = await books.clearTrash(c.env.DB, { kv: c.env.KV, bucket: c.env.COVERS });
   return c.json({ data: { deleted: count } });
 });
 
 // DELETE /api/books/trash/:id（彻底删除，二次确认由前端负责）
 booksRoutes.delete('/trash/:id', async (c) => {
   const id = Number(c.req.param('id'));
-  const ok = await books.permanentDelete(c.env.DB, id);
+  const ok = await books.permanentDelete(c.env.DB, id, { kv: c.env.KV, bucket: c.env.COVERS });
   if (!ok) return err(c, 'NOT_FOUND', '不存在或已被删除', 404);
   return c.body(null, 204);
 });

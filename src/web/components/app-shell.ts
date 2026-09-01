@@ -2,7 +2,7 @@
 import { api } from '../api';
 import { setState, state, subscribe } from '../state';
 import { h, iconSun, iconMoon, iconSettings, iconLogout, iconSearch, iconKey, iconGithub, iconCloudflare, iconDouban } from '../ui';
-import { refresh, refreshSidebar } from '../refresh';
+import { refresh } from '../refresh';
 import { renderBookList } from './book-list';
 import { renderTrash } from './trash-panel';
 import { openSettings, openAgentSettings, toggleTheme } from './settings-panel';
@@ -95,7 +95,6 @@ export function mountAppShell(root: HTMLElement) {
 
   render();
   void refresh();
-  void refreshSidebar();
 }
 
 function renderSidebar(): HTMLElement {
@@ -106,9 +105,9 @@ function renderSidebar(): HTMLElement {
   };
 
   const statusCounts = { unread: 0, reading: 0, finished: 0 };
-  for (const b of state.allBooks ?? []) {
-    if (b.status in statusCounts) {
-      statusCounts[b.status as keyof typeof statusCounts]++;
+  for (const [k, v] of Object.entries(state.stats?.byStatus ?? {})) {
+    if (k in statusCounts) {
+      statusCounts[k as keyof typeof statusCounts] = v;
     }
   }
 
@@ -184,7 +183,7 @@ function renderSidebar(): HTMLElement {
       title,
     }, icon(15));
 
-  const total = state.allBooks?.length ?? state.total ?? 0;
+  const total = state.stats?.total ?? state.total ?? 0;
 
   return h('div', { class: 'flex-1 flex flex-col min-h-0' },
     // 统计卡片（顶部固定）

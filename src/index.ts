@@ -11,6 +11,7 @@ import { agentRoutes } from './api/agent';
 import { agentKeysRoutes } from './api/agent-keys';
 import { exportRoutes } from './api/export';
 import { importRoutes } from './api/import';
+import { storageRoutes } from './api/storage';
 import { ensureAdmin } from './lib/bootstrap';
 
 // M0–M1：health / auth / books / categories / tags；M3+ 追加 metadata / query / export / import。
@@ -39,6 +40,7 @@ app.route('/api/agent', agentRoutes);
 app.route('/api/agent-keys', agentKeysRoutes);
 app.route('/api/export', exportRoutes);
 app.route('/api/import', importRoutes);
+app.route('/api/storage', storageRoutes);
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {

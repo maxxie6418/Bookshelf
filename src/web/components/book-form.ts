@@ -2,7 +2,7 @@
 import { api } from '../api';
 import type { Book } from '../types';
 import { h, toast, modal } from '../ui';
-import { refresh, refreshSidebar } from '../refresh';
+import { refresh } from '../refresh';
 import { createBookEditForm, labelCls } from './book-edit-form';
 
 const field = (label: string, el: HTMLElement) => h('div', {}, h('label', { class: labelCls }, label), el);
@@ -51,7 +51,6 @@ export function openBookForm(book?: Book) {
             overlay?.remove();
             toast(isEdit ? '已更新' : '已添加');
             await refresh();
-            await refreshSidebar();
           } catch (e) {
             toast((e as Error).message, 'error');
           }

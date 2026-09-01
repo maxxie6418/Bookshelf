@@ -48,6 +48,7 @@ const bookUpdateSchema = bookSchema.partial();
 const fetchSchema = z.object({
   url: z.string().optional(),
   isbn: z.string().optional(),
+  force: z.boolean().optional(),
 });
 
 const VALID_STATUS = ['unread', 'reading', 'finished', 'shelved'];
@@ -126,13 +127,13 @@ agentRoutes.post('/books/metadata/fetch', async (c) => {
   const body = await c.req.json().catch(() => null);
   const parsed = fetchSchema.safeParse(body);
   if (!parsed.success) return err(c, 'VALIDATION_ERROR', parsed.error.issues[0]?.message ?? '参数错误');
-  const { url, isbn } = parsed.data;
+  const { url, isbn, force } = parsed.data;
   if (!url && !isbn) return err(c, 'VALIDATION_ERROR', '请提供 url 或 isbn');
 
   try {
     const meta = isbn
-      ? await fetchDoubanMetadataByIsbn(isbn, c.env.KV)
-      : await fetchDoubanMetadataByUrl(url!, c.env.KV);
+      ? await fetchDoubanMetadataByIsbn(isbn, c.env.KV, { force })
+      : await fetchDoubanMetadataByUrl(url!, c.env.KV, { force });
 
     // 封面下载到 R2，返回站内代理路径；失败保留原图或置空（前端走纯色兜底）
     let cover_url = meta.cover_url;

@@ -11,6 +11,9 @@ let reasonColumnReady = false;
 let shelvedFavoriteReady = false;
 let subtitleColumnReady = false;
 
+// 引导完成标志：首次完整引导成功后写 KV，此后每个 isolate 的每次请求只需 1 次 KV 读即可跳过全部引导查询。
+const BOOTSTRAP_READY_KEY = 'bootstrap:ready';
+
 // 幂等建表：仅当 users 表缺失时执行内置 schema（与 migrations/0000_init.sql 一致），
 // 使「Deploy to Cloudflare」等不执行迁移命令的部署方式也能自动完成建表。
 async function ensureSchema(env: Env): Promise<void> {
@@ -164,16 +167,34 @@ FROM books`,
   shelvedFavoriteReady = true;
 }
 
+async function markBootstrapReady(env: Env): Promise<void> {
+  try {
+    await env.KV.put(BOOTSTRAP_READY_KEY, '1');
+  } catch {
+    // 写入失败只影响后续少一次快路径，不阻塞
+  }
+}
+
 export async function ensureAdmin(env: Env): Promise<void> {
+  // KV 快路径：引导已完成的线上库跳过全部 D1 检查（幂等，首次完整引导成功后写标志）
+  try {
+    if (await env.KV.get(BOOTSTRAP_READY_KEY)) return;
+  } catch {
+    // KV 不可用时退化为原有逐次引导，不阻塞请求
+  }
   await ensureSchema(env);
   await ensureBookNotesColumn(env);
   await ensureBookReasonColumn(env);
   await ensureBookSubtitleColumn(env);
   await ensureBookShelvedFavoriteRebuild(env);
-  if (seeded) return;
+  if (seeded) {
+    await markBootstrapReady(env);
+    return;
+  }
   const row = await env.DB.prepare('SELECT COUNT(*) AS c FROM users').first<{ c: number }>();
   if ((row?.c ?? 0) > 0) {
     seeded = true;
+    await markBootstrapReady(env);
     return;
   }
   const pwd = env.INITIAL_ADMIN_PASSWORD || 'admin123';
@@ -184,4 +205,5 @@ export async function ensureAdmin(env: Env): Promise<void> {
     .bind(hash)
     .run();
   seeded = true;
+  await markBootstrapReady(env);
 }

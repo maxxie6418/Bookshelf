@@ -1,4 +1,10 @@
 // SPA 入口
+import '@fontsource/noto-serif-sc/400.css';
+import '@fontsource/noto-serif-sc/600.css';
+import '@fontsource/noto-serif-sc/700.css';
+import '@fontsource/jetbrains-mono/400.css';
+import '@fontsource/jetbrains-mono/500.css';
+import '@fontsource/jetbrains-mono/600.css';
 import { api } from './api';
 import { state, subscribe } from './state';
 import { renderLogin } from './components/login';

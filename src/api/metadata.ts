@@ -16,6 +16,7 @@ metadataRoutes.use(requireAuth);
 const fetchSchema = z.object({
   url: z.string().optional(),
   isbn: z.string().optional(),
+  force: z.boolean().optional(),
 });
 
 metadataRoutes.post('/fetch', async (c) => {
@@ -24,15 +25,15 @@ metadataRoutes.post('/fetch', async (c) => {
   if (!parsed.success) {
     return c.json({ error: { code: 'VALIDATION_ERROR', message: parsed.error.issues[0]?.message ?? '参数错误' } }, 400);
   }
-  const { url, isbn } = parsed.data;
+  const { url, isbn, force } = parsed.data;
   if (!url && !isbn) {
     return c.json({ error: { code: 'VALIDATION_ERROR', message: '请提供 url 或 isbn' } }, 400);
   }
 
   try {
     const meta = isbn
-      ? await fetchDoubanMetadataByIsbn(isbn, c.env.KV)
-      : await fetchDoubanMetadataByUrl(url!, c.env.KV);
+      ? await fetchDoubanMetadataByIsbn(isbn, c.env.KV, { force })
+      : await fetchDoubanMetadataByUrl(url!, c.env.KV, { force });
 
     // 封面下载到 R2，返回站内代理路径；失败保留原图或置空（走前端纯色兜底）
     let cover_url = meta.cover_url;

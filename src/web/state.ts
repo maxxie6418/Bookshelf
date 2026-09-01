@@ -1,5 +1,5 @@
 // 全局状态 + 极简发布订阅
-import type { Book, Category, Filters, Tag, User } from './types';
+import type { Book, Category, Filters, Stats, Tag, User } from './types';
 
 const listeners = new Set<() => void>();
 
@@ -10,7 +10,7 @@ export const state = {
   viewMode: 'main' as 'main' | 'trash',
   filters: {} as Filters,
   books: [] as Book[],
-  allBooks: [] as Book[], // 无筛选的全部书籍（用于侧边栏统计）
+  stats: null as Stats | null, // 侧栏聚合统计（总藏书/在读/分类/标签计数）
   total: 0,
   page: 1, // 当前列表页码（1 起）
   loading: false,

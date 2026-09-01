@@ -1,4 +1,5 @@
 import type { D1Database } from '@cloudflare/workers-types';
+import { CATEGORY_COUNT_SQL } from './stats';
 
 export interface CategoryRow {
   id: number;
@@ -8,15 +9,7 @@ export interface CategoryRow {
 }
 
 export async function listCategories(db: D1Database) {
-  const rows = await db
-    .prepare(
-      `SELECT c.id, c.name, c.color, COUNT(b.id) AS count
-       FROM categories c
-       LEFT JOIN books b ON b.category_id = c.id AND b.deleted_at IS NULL
-       GROUP BY c.id
-       ORDER BY c.name COLLATE NOCASE`,
-    )
-    .all<CategoryRow>();
+  const rows = await db.prepare(CATEGORY_COUNT_SQL).all<CategoryRow>();
   return rows.results;
 }
 

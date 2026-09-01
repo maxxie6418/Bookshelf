@@ -1,5 +1,6 @@
 import type { D1Database } from '@cloudflare/workers-types';
 import { normalizeTitle } from './csv';
+import { purgeResources, type ResourceTargets } from './storage';
 
 // ===== 类型 =====
 
@@ -331,16 +332,34 @@ export async function restore(db: D1Database, id: number): Promise<boolean> {
   return res.meta.changes > 0;
 }
 
-export async function permanentDelete(db: D1Database, id: number): Promise<boolean> {
+export async function permanentDelete(
+  db: D1Database,
+  id: number,
+  cleanup?: ResourceTargets,
+): Promise<boolean> {
+  const row = await db
+    .prepare('SELECT douban_url, isbn, cover_url FROM books WHERE id = ?')
+    .bind(id)
+    .first<{ douban_url: string | null; isbn: string | null; cover_url: string | null }>();
   await db.prepare('DELETE FROM book_tags WHERE book_id = ?').bind(id).run();
   const res = await db.prepare('DELETE FROM books WHERE id = ?').bind(id).run();
+  if (res.meta.changes > 0 && cleanup && row) {
+    await purgeResources(db, cleanup, [row], '1=1', []);
+  }
   return res.meta.changes > 0;
 }
 
-export async function clearTrash(db: D1Database): Promise<number> {
+export async function clearTrash(db: D1Database, cleanup?: ResourceTargets): Promise<number> {
+  const rows = await db
+    .prepare('SELECT douban_url, isbn, cover_url FROM books WHERE deleted_at IS NOT NULL')
+    .all<{ douban_url: string | null; isbn: string | null; cover_url: string | null }>();
   const res = await db
     .prepare(`DELETE FROM books WHERE deleted_at IS NOT NULL`)
     .run();
+  if (res.meta.changes > 0 && cleanup && rows.results.length) {
+    // 回收站已全部清除，仅存活的书籍仍引用该资源才保留
+    await purgeResources(db, cleanup, rows.results, 'deleted_at IS NULL', []);
+  }
   return res.meta.changes;
 }
 

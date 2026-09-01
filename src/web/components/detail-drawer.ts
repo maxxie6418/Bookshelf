@@ -3,7 +3,7 @@ import { api } from '../api';
 import type { Book } from '../types';
 import { h, toast, confirmDialog, renderCoverPlaceholder, renderStars, iconClose, iconEdit, iconStar, mainDomain } from '../ui';
 import { createBookEditForm, labelCls } from './book-edit-form';
-import { refresh, refreshSidebar } from '../refresh';
+import { refresh } from '../refresh';
 
 const STATUS_LABEL: Record<string, string> = { unread: '未读', reading: '在读', finished: '读完', shelved: '搁置' };
 
@@ -101,7 +101,6 @@ function editableMemoBlock(
               toast('已保存');
               book = updated;
               await refresh(false, false);
-              await refreshSidebar();
               editEl.classList.add('hidden');
               renderView();
             } catch (e) {
@@ -240,7 +239,6 @@ export function renderDrawer(book: Book) {
               close();
               toast('已移入回收站');
               await refresh();
-              await refreshSidebar();
             } catch (e) {
               toast((e as Error).message, 'error');
             }
@@ -304,7 +302,6 @@ export function renderDrawer(book: Book) {
             const updated = await api.getBook(current.id);
             toast('已更新');
             await refresh(false, false);
-            await refreshSidebar();
             renderDisplay(updated);
           } catch (e) {
             toast((e as Error).message, 'error');

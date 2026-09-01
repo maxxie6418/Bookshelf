@@ -1,5 +1,5 @@
 // API 客户端（前端唯一的数据入口）
-import type { Book, BookListResult, Category, Filters, Tag, User } from './types';
+import type { Book, BookListResult, Category, Filters, Stats, StorageCheckResult, StorageCleanupResult, Tag, User } from './types';
 
 const BASE = '/api';
 
@@ -60,6 +60,7 @@ export const api = {
     }
     return request<BookListResult>(`/books${qs(params)}`);
   },
+  fetchStats: () => request<Stats>('/books/stats'),
   getBook: (id: number) => request<Book>(`/books/${id}`),
   createBook: (data: Partial<Book> & { title: string }) => request<Book>('/books', { method: 'POST', body: JSON.stringify(data) }),
   updateBook: (id: number, data: Partial<Book>) => request<Book>(`/books/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
@@ -69,7 +70,7 @@ export const api = {
   clearTrash: () => request<{ deleted: number }>('/books/trash', { method: 'DELETE' }),
 
   // metadata（豆瓣抓取）
-  fetchMetadata: (input: { url?: string; isbn?: string }) =>
+  fetchMetadata: (input: { url?: string; isbn?: string; force?: boolean }) =>
     request<{
       title: string | null;
       author: string | null;
@@ -109,4 +110,9 @@ export const api = {
   exportBooks: () => requestText('/export/books'),
   importPreview: (csv: string) => request<{ rows: any[]; summary: { total: number; valid: number; duplicate: number } }>('/import/books/preview', { method: 'POST', body: JSON.stringify({ csv }) }),
   importBatch: (items: unknown[]) => request<{ created: number }>('/import/books/batch', { method: 'POST', body: JSON.stringify({ imports: items }) }),
+
+  // 存储检查 / 清理（设置页）
+  checkStorage: () => request<StorageCheckResult>('/storage/check'),
+  cleanupStorage: (kinds: { kv: boolean; covers: boolean }) =>
+    request<StorageCleanupResult>('/storage/cleanup', { method: 'POST', body: JSON.stringify(kinds) }),
 };

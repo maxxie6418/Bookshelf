@@ -6,7 +6,7 @@
 import { api } from '../api';
 import { state } from '../state';
 import { h, toast, iconPlus, iconEdit, iconTrash } from '../ui';
-import { refresh, refreshSidebar } from '../refresh';
+import { refresh } from '../refresh';
 
 type Kind = 'category' | 'tag';
 
@@ -19,7 +19,6 @@ function listOf(kind: Kind): { id: number; name: string; count: number; color?: 
 }
 
 async function afterChange() {
-  await refreshSidebar();
   await refresh();
 }
 

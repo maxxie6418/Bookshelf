@@ -5,7 +5,7 @@ import type { Book } from '../types';
 import { h, toast, renderCoverPlaceholder, renderStars, iconList, iconGrid, iconEdit, iconPlus, iconBookOpen, iconStar, iconRefresh, mainDomain } from '../ui';
 import { renderDrawer } from './detail-drawer';
 import { openBookForm } from './book-form';
-import { refresh, refreshSidebar, PAGE_SIZE } from '../refresh';
+import { refresh, PAGE_SIZE } from '../refresh';
 import { createInlineEditRow, metaToPatch } from './book-inline-edit';
 
 const STATUS_LABEL: Record<string, string> = { unread: '未读', reading: '在读', finished: '读完', shelved: '搁置' };
@@ -34,7 +34,7 @@ async function refreshMeta(b: Book, btn: HTMLButtonElement) {
       toast('该书无豆瓣链接或 ISBN，无法抓取元数据', 'error');
       return;
     }
-    const d = await api.fetchMetadata(input);
+    const d = await api.fetchMetadata({ ...input, force: true });
     const patch = metaToPatch(d);
     if (Object.keys(patch).length === 0) {
       toast('未获取到可更新的元数据', 'error');
@@ -42,7 +42,7 @@ async function refreshMeta(b: Book, btn: HTMLButtonElement) {
     }
     await api.updateBook(b.id, patch);
     toast(`已刷新《${b.title}》`);
-    await Promise.all([refresh(false, false), refreshSidebar()]);
+    await refresh(false, false);
   } catch (e) {
     toast((e as Error).message, 'error');
   } finally {
@@ -87,18 +87,12 @@ function statusBadge(b: Book): HTMLElement {
   );
 }
 
-// 本地更新书籍字段并触发重绘（避免全局骨架屏刷新）
+// 本地更新当前列表书籍字段并触发重绘（避免全局骨架屏刷新）
 function patchBookLocal(id: number, patch: Partial<Book>) {
   const idx = state.books.findIndex((book) => book.id === id);
-  if (idx !== -1) {
-    state.books[idx] = { ...state.books[idx], ...patch };
-    setState({ books: [...state.books] });
-  }
-  const allIdx = state.allBooks.findIndex((book) => book.id === id);
-  if (allIdx !== -1) {
-    state.allBooks[allIdx] = { ...state.allBooks[allIdx], ...patch };
-    setState({ allBooks: [...state.allBooks] });
-  }
+  if (idx === -1) return;
+  state.books[idx] = { ...state.books[idx], ...patch };
+  setState({ books: [...state.books] });
 }
 
 // 快捷改状态
@@ -107,7 +101,7 @@ async function quickStatus(b: Book, status: string) {
     await api.updateBook(b.id, { status: status as Book['status'] });
     toast('状态已更新');
     patchBookLocal(b.id, { status: status as Book['status'] });
-    await Promise.all([refresh(false, false), refreshSidebar()]);
+    await refresh(false, false);
   } catch (e) {
     toast((e as Error).message, 'error');
   }
@@ -120,7 +114,7 @@ export async function quickFavorite(b: Book) {
     await api.updateBook(b.id, { favorite: next });
     toast(b.favorite ? '已取消收藏' : '已收藏');
     patchBookLocal(b.id, { favorite: next });
-    await Promise.all([refresh(false, false), refreshSidebar()]);
+    await refresh(false, false);
   } catch (e) {
     toast((e as Error).message, 'error');
   }
@@ -415,7 +409,6 @@ function renderBookRow(b: Book): HTMLTableRowElement {
           onSaved: () => {
             editRow.replaceWith(renderBookRow(b));
             void refresh(false, false);
-            void refreshSidebar();
           },
         });
         row.replaceWith(editRow);

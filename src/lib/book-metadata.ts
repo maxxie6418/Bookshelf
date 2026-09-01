@@ -17,6 +17,50 @@ export interface BookMetadata {
   source: 'douban';
 }
 
+// ===== KV 元数据缓存 =====
+// 键：meta:douban:subject:{subjectId} / meta:douban:isbn:{isbn}；值：{ v:1, cached_at, meta }
+// 默认 TTL 24h；手动抓取刷新可传 force 绕过缓存重新拉取
+const METADATA_CACHE_TTL = 86400;
+const SUBJECT_RE = /subject\/(\d+)/;
+
+export interface FetchMetadataOptions {
+  force?: boolean;
+}
+
+interface CachedMeta {
+  v: 1;
+  cached_at: string;
+  meta: BookMetadata;
+}
+
+async function readMetaCache(kv: KVNamespace | undefined, key: string): Promise<BookMetadata | null> {
+  if (!kv) return null;
+  try {
+    const raw = await kv.get(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as CachedMeta;
+    if (parsed?.v !== 1 || !parsed.meta?.title) return null;
+    return parsed.meta;
+  } catch {
+    return null;
+  }
+}
+
+async function writeMetaCache(kv: KVNamespace | undefined, key: string, meta: BookMetadata): Promise<void> {
+  if (!kv) return;
+  try {
+    const value: CachedMeta = { v: 1, cached_at: new Date().toISOString(), meta };
+    await kv.put(key, JSON.stringify(value), { expirationTtl: METADATA_CACHE_TTL });
+  } catch {
+    // 缓存写失败不影响主流程
+  }
+}
+
+function subjectCacheKey(url: string): string | null {
+  const m = url.match(SUBJECT_RE);
+  return m ? `meta:douban:subject:${m[1]}` : null;
+}
+
 // 通过正则从豆瓣书籍详情页 HTML 中提取字段。
 export function parseDoubanHtml(html: string): Omit<BookMetadata, 'source'> {
   // 去掉 <style>/<script> 及注释，避免把 CSS 文本误当正文
@@ -141,34 +185,61 @@ export function normalizeDoubanUrl(input: string): string | null {
   return `https://book.douban.com/subject/${m[1]}/`;
 }
 
-// 由豆瓣链接抓取并解析元数据。
+// 由豆瓣链接抓取并解析元数据。命中 KV 缓存立即返回（force 可绕过强制刷新）。
 export async function fetchDoubanMetadataByUrl(
   url: string,
   kv?: KVNamespace,
+  opts?: FetchMetadataOptions,
 ): Promise<BookMetadata> {
   const pageUrl = normalizeDoubanUrl(url);
   if (!pageUrl) throw new Error('请输入有效的豆瓣书籍链接');
-  return fetchDoubanPage(pageUrl, kv);
+  const subjectKey = subjectCacheKey(pageUrl);
+  if (!opts?.force && subjectKey) {
+    const cached = await readMetaCache(kv, subjectKey);
+    if (cached) return cached;
+  }
+  return fetchDoubanPage(pageUrl, kv, opts, subjectKey ?? undefined, subjectKey ? [subjectKey] : []);
 }
 
-// 由 ISBN 先走豆瓣搜索定位 subject，再抓详情页。
+// 由 ISBN 先走豆瓣搜索定位 subject，再抓详情页；缓存键同时写 subject 键与 isbn 键。
 export async function fetchDoubanMetadataByIsbn(
   isbn: string,
   kv?: KVNamespace,
+  opts?: FetchMetadataOptions,
 ): Promise<BookMetadata> {
+  const isbnKey = `meta:douban:isbn:${isbn}`;
+  if (!opts?.force) {
+    const cached = await readMetaCache(kv, isbnKey);
+    if (cached) return cached;
+  }
   const searchUrl = `https://www.douban.com/search?cat=1001&q=${encodeURIComponent(isbn)}`;
-  const res = await fetchWithRetry(searchUrl, { kv, referer: 'https://book.douban.com/' });
+  const res = await fetchWithRetry(searchUrl, { referer: 'https://book.douban.com/' });
   const html = await res.text();
   const m = html.match(/https:\/\/book\.douban\.com\/subject\/(\d+)\//);
   if (!m) throw new Error('豆瓣未找到该 ISBN');
-  return fetchDoubanPage(`https://book.douban.com/subject/${m[1]}/`, kv);
+  const subjectKey = `meta:douban:subject:${m[1]}`;
+  return fetchDoubanPage(`https://book.douban.com/subject/${m[1]}/`, kv, opts, subjectKey, [subjectKey, isbnKey]);
 }
 
-async function fetchDoubanPage(pageUrl: string, kv?: KVNamespace): Promise<BookMetadata> {
-  const res = await fetchWithRetry(pageUrl, { kv, referer: 'https://book.douban.com/' });
+async function fetchDoubanPage(
+  pageUrl: string,
+  kv?: KVNamespace,
+  opts?: FetchMetadataOptions,
+  readKey?: string,
+  writeKeys: string[] = [],
+): Promise<BookMetadata> {
+  if (!opts?.force && readKey) {
+    const cached = await readMetaCache(kv, readKey);
+    if (cached) return cached;
+  }
+  const res = await fetchWithRetry(pageUrl, { referer: 'https://book.douban.com/' });
   if (res.status === 404) throw new Error('豆瓣未找到该书籍');
   const html = await res.text();
   const parsed = parseDoubanHtml(html);
   if (!parsed.title) throw new Error('解析失败，请检查链接是否为豆瓣书籍详情页');
-  return { ...parsed, source: 'douban' };
+  const meta: BookMetadata = { ...parsed, source: 'douban' };
+  for (const key of writeKeys) {
+    await writeMetaCache(kv, key, meta);
+  }
+  return meta;
 }

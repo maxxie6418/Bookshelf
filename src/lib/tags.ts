@@ -1,4 +1,5 @@
 import type { D1Database } from '@cloudflare/workers-types';
+import { TAG_COUNT_SQL } from './stats';
 
 export interface TagRow {
   id: number;
@@ -7,16 +8,7 @@ export interface TagRow {
 }
 
 export async function listTags(db: D1Database) {
-  const rows = await db
-    .prepare(
-      `SELECT t.id, t.name, COUNT(b.id) AS count
-       FROM tags t
-       LEFT JOIN book_tags bt ON bt.tag_id = t.id
-       LEFT JOIN books b ON b.id = bt.book_id AND b.deleted_at IS NULL
-       GROUP BY t.id
-       ORDER BY t.name COLLATE NOCASE`,
-    )
-    .all<TagRow>();
+  const rows = await db.prepare(TAG_COUNT_SQL).all<TagRow>();
   return rows.results;
 }
 
