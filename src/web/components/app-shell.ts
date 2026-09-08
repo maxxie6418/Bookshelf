@@ -2,7 +2,7 @@
 import { api } from '../api';
 import { setState, state, subscribe } from '../state';
 import { h, iconSun, iconMoon, iconSettings, iconLogout, iconSearch, iconKey, iconGithub, iconCloudflare, iconDouban } from '../ui';
-import { refresh } from '../refresh';
+import { refresh, refreshBooks } from '../refresh';
 import { renderBookList } from './book-list';
 import { renderTrash } from './trash-panel';
 import { openSettings, openAgentSettings, toggleTheme } from './settings-panel';
@@ -20,11 +20,12 @@ export function mountAppShell(root: HTMLElement) {
     class: 'w-full pl-10 pr-4 py-2.5 rounded-xl bg-[var(--bg-page)] border border-[var(--border-default)] text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all placeholder:text-[var(--text-muted)]',
   });
   let timer: number | undefined;
+  let mobileTimer: number | undefined;
   search.addEventListener('input', () => {
     window.clearTimeout(timer);
     timer = window.setTimeout(() => {
       setState({ filters: { ...state.filters, q: search.value.trim() || undefined } });
-      void refresh();
+      void refreshBooks();
     }, 300);
   });
 
@@ -41,7 +42,7 @@ export function mountAppShell(root: HTMLElement) {
             ),
           ),
           h('span', { class: 'text-lg font-bold tracking-tight font-display hidden sm:block' }, '我的书架'),
-          h('span', { class: 'text-[11px] text-[var(--text-muted)] hidden sm:block leading-none mt-1' }, 'v1.0.1'),
+          h('span', { class: 'text-[11px] text-[var(--text-muted)] hidden sm:block leading-none mt-1' }, 'v1.2.0'),
         ),
         // 搜索（桌面端）
         h('div', { class: 'hidden md:flex flex-1 max-w-2xl mx-8' },
@@ -64,8 +65,11 @@ export function mountAppShell(root: HTMLElement) {
             class: 'w-full pl-10 pr-4 py-2 rounded-xl bg-[var(--bg-page)] border border-[var(--border-default)] text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all placeholder:text-[var(--text-muted)]',
             oninput: (e: Event) => {
               const v = (e.target as HTMLInputElement).value.trim();
-              setState({ filters: { ...state.filters, q: v || undefined } });
-              void refresh();
+              window.clearTimeout(mobileTimer);
+              mobileTimer = window.setTimeout(() => {
+                setState({ filters: { ...state.filters, q: v || undefined } });
+                void refreshBooks();
+              }, 300);
             },
           }),
         ),
@@ -101,7 +105,7 @@ function renderSidebar(): HTMLElement {
   const f = state.filters;
   const clickFilter = (patch: Partial<typeof state.filters>) => {
     setState({ filters: { ...state.filters, ...patch }, viewMode: 'main' });
-    void refresh();
+    void refreshBooks();
   };
 
   const statusCounts = { unread: 0, reading: 0, finished: 0 };

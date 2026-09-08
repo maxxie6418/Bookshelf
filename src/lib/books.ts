@@ -75,7 +75,20 @@ export interface ListQuery {
 
 // ===== 常量 =====
 
-const BASE_SELECT = `
+// 列表选择：排除 description / notes / reason 详情大字段，用于列表瘦身
+const LIST_SELECT = `
+  SELECT
+    b.id, b.title, b.author, b.translator, b.publisher, b.publish_year, b.page_count,
+    b.subtitle, b.isbn, b.cover_url, b.douban_url, b.rating, b.status, b.favorite,
+    b.category_id, b.sort_order, b.source, b.started_at, b.finished_at, b.deleted_at,
+    b.created_at, b.updated_at,
+    c.name AS category_name, c.color AS category_color
+  FROM books b
+  LEFT JOIN categories c ON c.id = b.category_id
+`;
+
+// 详情选择：返回全量字段，供 getBook() 使用
+const DETAIL_SELECT = `
   SELECT b.*, c.name AS category_name, c.color AS category_color
   FROM books b
   LEFT JOIN categories c ON c.id = b.category_id
@@ -148,7 +161,7 @@ export async function listBooks(db: D1Database, q: ListQuery) {
     .bind(...params)
     .first<{ total: number }>();
   const listRes = await db
-    .prepare(`${BASE_SELECT} ${whereSql} ORDER BY ${orderSql} LIMIT ? OFFSET ?`)
+    .prepare(`${LIST_SELECT} ${whereSql} ORDER BY ${orderSql} LIMIT ? OFFSET ?`)
     .bind(...params, limit, offset)
     .all<BookRow>();
 
@@ -199,7 +212,7 @@ export async function mapExistingByKey(db: D1Database): Promise<{
 }
 
 export async function getBook(db: D1Database, id: number) {
-  const row = await db.prepare(`${BASE_SELECT} WHERE b.id = ?`).bind(id).first<BookRow>();
+  const row = await db.prepare(`${DETAIL_SELECT} WHERE b.id = ?`).bind(id).first<BookRow>();
   if (!row) return null;
   const tags = (await tagsForBooks(db, [id]))[id] ?? [];
   return toBookJson(row, tags);

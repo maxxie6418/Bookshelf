@@ -22,7 +22,7 @@ const inputCls =
 
 function coverEl(b: Book): HTMLElement {
   if (b.cover_url) {
-    return h('img', { src: b.cover_url, alt: b.title, class: 'w-full h-full object-cover', loading: 'lazy' });
+    return h('img', { src: b.cover_url, alt: b.title, class: 'w-full h-full object-cover', loading: 'lazy', decoding: 'async' });
   }
   return renderCoverPlaceholder(b, 'table');
 }

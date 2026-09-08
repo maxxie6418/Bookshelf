@@ -134,6 +134,7 @@ export function renderDrawer(book: Book) {
       ? h('img', {
           src: current.cover_url,
           alt: '',
+          decoding: 'async',
           class: 'absolute -inset-x-10 -inset-y-6 w-[calc(100%+5rem)] h-[calc(100%+3rem)] object-cover blur-xl scale-110 opacity-70',
         })
       : h('div', { class: 'absolute -inset-x-10 -inset-y-6 overflow-hidden' },

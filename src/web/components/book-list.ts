@@ -5,7 +5,7 @@ import type { Book } from '../types';
 import { h, toast, renderCoverPlaceholder, renderStars, iconList, iconGrid, iconEdit, iconPlus, iconBookOpen, iconStar, iconRefresh, mainDomain } from '../ui';
 import { renderDrawer } from './detail-drawer';
 import { openBookForm } from './book-form';
-import { refresh, PAGE_SIZE } from '../refresh';
+import { refresh, refreshBooks, PAGE_SIZE } from '../refresh';
 import { createInlineEditRow, metaToPatch } from './book-inline-edit';
 
 const STATUS_LABEL: Record<string, string> = { unread: '未读', reading: '在读', finished: '读完', shelved: '搁置' };
@@ -19,7 +19,7 @@ const STATUS_META: Record<string, { label: string; dot: string; bg: string; text
 
 function coverEl(b: Book, size: 'grid' | 'table' = 'grid'): HTMLElement {
   if (b.cover_url) {
-    return h('img', { src: b.cover_url, alt: b.title, class: 'w-full h-full object-cover', loading: 'lazy' });
+    return h('img', { src: b.cover_url, alt: b.title, class: 'w-full h-full object-cover', loading: 'lazy', decoding: 'async' });
   }
   return renderCoverPlaceholder(b, size);
 }
@@ -64,7 +64,7 @@ function renderTagChips(tags: string[]): HTMLElement {
       onclick: (e: Event) => {
         e.stopPropagation();
         setState({ filters: { ...state.filters, tag: t } });
-        void refresh();
+        void refreshBooks();
       },
     }, `#${t}`));
   }
@@ -129,7 +129,7 @@ export function renderBookList(container: HTMLElement) {
     class: 'text-sm bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-lg px-3 py-1.5 text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent)]/50 outline-none',
     onchange: () => {
       setState({ filters: { ...state.filters, sort: sortSel.value } });
-      void refresh();
+      void refreshBooks();
     },
   });
   for (const [v, label] of [['updated_desc', '最近更新'], ['updated_asc', '最早更新'], ['title_asc', '书名 ↑'], ['title_desc', '书名 ↓'], ['rating_desc', '评分 ↓']] as const) {
@@ -178,7 +178,7 @@ export function renderBookList(container: HTMLElement) {
       onclick: () => {
         const v = s.value === 'all' ? undefined : s.value;
         setState({ filters: { ...state.filters, status: v as typeof state.filters.status } });
-        void refresh();
+        void refreshBooks();
       },
     }, s.label));
   }
@@ -193,7 +193,7 @@ export function renderBookList(container: HTMLElement) {
     title: favActive ? '取消只看收藏' : '只看收藏',
     onclick: () => {
       setState({ filters: { ...state.filters, favorite: favActive ? undefined : true } });
-      void refresh();
+      void refreshBooks();
     },
   }, iconStar(15), '收藏');
 
@@ -254,7 +254,7 @@ function hasActiveFilters(): boolean {
 
 function clearFilters() {
   setState({ filters: { sort: state.filters.sort } });
-  void refresh();
+  void refreshBooks();
 }
 
 function renderSkeletonGrid(): HTMLElement {
@@ -363,8 +363,8 @@ function renderPagination(): HTMLElement | null {
   const cur = Math.min(Math.max(state.page, 1), totalPages);
   const wrap = h('div', { class: 'flex items-center justify-center gap-2 pt-8' },
     h('span', { class: 'text-sm text-[var(--text-muted)] mr-2' }, `共 ${state.total} 本 · 第 ${cur}/${totalPages} 页`),
-    pageBtn('上一页', cur > 1, () => { setState({ page: cur - 1 }); void refresh(false); }),
-    pageBtn('下一页', cur < totalPages, () => { setState({ page: cur + 1 }); void refresh(false); }),
+    pageBtn('上一页', cur > 1, () => { setState({ page: cur - 1 }); void refreshBooks(false); }),
+    pageBtn('下一页', cur < totalPages, () => { setState({ page: cur + 1 }); void refreshBooks(false); }),
   );
   return wrap;
 }
