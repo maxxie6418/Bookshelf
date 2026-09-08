@@ -47,10 +47,12 @@ function editableMemoBlock(
   memoKey: 'notes' | 'reason',
   label: string,
   maxLen: number,
+  collapsed = false,
 ): HTMLElement {
   const wrap = h('div', { class: 'rounded-xl border border-[var(--border-default)] overflow-hidden bg-[var(--bg-surface)]' });
   const viewEl = h('div', {});
   const editEl = h('div', { class: 'hidden' });
+  let isCollapsed = collapsed;
   wrap.append(viewEl, editEl);
 
   const renderView = () => {
@@ -58,18 +60,31 @@ function editableMemoBlock(
     viewEl.classList.remove('hidden');
     editEl.classList.add('hidden');
     viewEl.replaceChildren(
-      h('div', { class: 'flex items-center justify-between px-3 py-2 border-b border-[var(--border-subtle)]' },
-        h('div', { class: 'text-xs font-medium text-[var(--text-muted)]' }, label),
-        h('button', {
-          class: 'inline-flex items-center gap-1 text-xs text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors',
-          onclick: () => { viewEl.classList.add('hidden'); editEl.classList.remove('hidden'); renderEdit(); },
-        }, iconEdit(14), '编辑'),
-      ),
-      h('div', { class: 'px-3 py-2.5' },
-        val
-          ? h('p', { class: 'text-sm leading-relaxed text-[var(--text-secondary)] whitespace-pre-wrap' }, val)
-          : h('p', { class: 'text-sm text-[var(--text-muted)]' }, '暂无内容，点击右上角「编辑」填写'),
-      ),
+      isCollapsed
+        ? h('button', {
+            class: 'w-full flex items-center justify-between px-3 py-2 text-left text-xs font-medium text-[var(--text-muted)] hover:bg-[var(--bg-surface-hover)] transition-colors',
+            onclick: () => { isCollapsed = false; renderView(); },
+          },
+          h('span', {}, label),
+          h('span', { class: 'text-[var(--text-secondary)]' }, '展开'),
+        )
+        : h('div', {},
+            h('div', { class: 'flex items-center justify-between px-3 py-2 border-b border-[var(--border-subtle)]' },
+              h('button', {
+                class: 'text-xs font-medium text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors',
+                onclick: () => { isCollapsed = true; renderView(); },
+              }, label),
+              h('button', {
+                class: 'inline-flex items-center gap-1 text-xs text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors',
+                onclick: () => { viewEl.classList.add('hidden'); editEl.classList.remove('hidden'); renderEdit(); },
+              }, iconEdit(14), '编辑'),
+            ),
+            h('div', { class: 'px-3 py-2.5' },
+              val
+                ? h('p', { class: 'text-sm leading-relaxed text-[var(--text-secondary)] whitespace-pre-wrap' }, val)
+                : h('p', { class: 'text-sm text-[var(--text-muted)]' }, '暂无内容，点击右上角「编辑」填写'),
+            ),
+          ),
     );
   };
 
@@ -93,20 +108,20 @@ function editableMemoBlock(
           h('button', {
             class: 'px-3 py-1.5 rounded-lg text-xs font-medium bg-[var(--accent)] text-[var(--accent-text)] hover:bg-[var(--accent-hover)] transition-colors',
             onclick: async () => {
-            const value = ta.value.trim();
-            if (value.length > maxLen) { toast(`最多 ${maxLen} 字`, 'error'); return; }
-            try {
-              await api.updateBook(book.id, { [memoKey]: value || null });
-              const updated = await api.getBook(book.id);
-              toast('已保存');
-              book = updated;
-              await refresh(false, false);
-              editEl.classList.add('hidden');
-              renderView();
-            } catch (e) {
-              toast((e as Error).message, 'error');
-            }
-          },
+              const value = ta.value.trim();
+              if (value.length > maxLen) { toast(`最多 ${maxLen} 字`, 'error'); return; }
+              try {
+                await api.updateBook(book.id, { [memoKey]: value || null });
+                const updated = await api.getBook(book.id);
+                toast('已保存');
+                book = updated;
+                await refresh(false, false);
+                editEl.classList.add('hidden');
+                renderView();
+              } catch (e) {
+                toast((e as Error).message, 'error');
+              }
+            },
           }, '保存'),
         ),
       ),
@@ -194,14 +209,8 @@ export function renderDrawer(book: Book) {
           ...current.tags.map((t) => h('span', { class: 'px-2.5 py-1 rounded-full text-xs bg-[var(--bg-surface-hover)] text-[var(--text-secondary)] border border-[var(--border-subtle)]' }, `#${t}`)),
         ),
       ) : null,
-      // 自行填写的内容与上方属性块之间加分割线
-      h('div', { class: 'flex items-center gap-3 pt-1' },
-        h('div', { class: 'flex-1 border-t border-[var(--border-subtle)]' }),
-        h('span', { class: 'text-xs text-[var(--text-muted)]' }, '我的记录'),
-        h('div', { class: 'flex-1 border-t border-[var(--border-subtle)]' }),
-      ),
-      editableMemoBlock(current, 'notes', '笔记', 2000),
       editableMemoBlock(current, 'reason', '录入理由', 1000),
+      editableMemoBlock(current, 'notes', '笔记', 2000, true),
     );
   }
 
