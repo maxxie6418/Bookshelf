@@ -88,11 +88,24 @@ function statusBadge(b: Book): HTMLElement {
 }
 
 // 本地更新当前列表书籍字段并触发重绘（避免全局骨架屏刷新）
-function patchBookLocal(id: number, patch: Partial<Book>) {
+function patchBookLocal(id: number, patch: Partial<Book>, notify = true) {
   const idx = state.books.findIndex((book) => book.id === id);
   if (idx === -1) return;
   state.books[idx] = { ...state.books[idx], ...patch };
-  setState({ books: [...state.books] });
+  if (notify) setState({ books: [...state.books] });
+}
+
+function updateFavoriteButton(btn: HTMLButtonElement, favorite: number, isGrid: boolean) {
+  btn.title = favorite ? '取消收藏' : '收藏';
+  btn.classList.toggle('text-[var(--accent)]', !!favorite);
+  btn.classList.toggle('text-[var(--text-muted)]', !favorite);
+  if (isGrid) {
+    btn.classList.toggle('border-[var(--accent)]/50', !!favorite);
+    btn.classList.toggle('border-[var(--border-default)]', !favorite);
+    btn.classList.toggle('opacity-0', !favorite);
+  } else {
+    btn.classList.toggle('hover:text-[var(--accent)]', !favorite);
+  }
 }
 
 // 快捷改状态
@@ -108,13 +121,18 @@ async function quickStatus(b: Book, status: string) {
 }
 
 // 快捷收藏/取消收藏
-export async function quickFavorite(b: Book) {
+export async function quickFavorite(b: Book, btn?: HTMLButtonElement, isGrid = false) {
   try {
     const next = b.favorite ? 0 : 1;
     await api.updateBook(b.id, { favorite: next });
     toast(b.favorite ? '已取消收藏' : '已收藏');
-    patchBookLocal(b.id, { favorite: next });
-    await refresh(false, false);
+    b.favorite = next;
+    if (btn) updateFavoriteButton(btn, next, isGrid);
+    if (state.filters.favorite && !next) {
+      await refreshBooks(false, false);
+      return;
+    }
+    patchBookLocal(b.id, { favorite: next }, !btn);
   } catch (e) {
     toast((e as Error).message, 'error');
   }
@@ -397,7 +415,7 @@ function renderBookRow(b: Book): HTMLTableRowElement {
     h('button', {
       class: 'p-1.5 rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors ' + (b.favorite ? 'text-[var(--accent)]' : 'text-[var(--text-muted)] hover:text-[var(--accent)]'),
       title: b.favorite ? '取消收藏' : '收藏',
-      onclick: (e: Event) => { e.stopPropagation(); void quickFavorite(b); },
+      onclick: (e: Event) => { e.stopPropagation(); void quickFavorite(b, e.currentTarget as HTMLButtonElement); },
     }, iconStar(18)),
     h('button', {
       class: 'p-1.5 rounded-lg hover:bg-[var(--bg-surface-hover)] transition-colors text-[var(--text-muted)] hover:text-[var(--text-secondary)]',
@@ -501,7 +519,7 @@ function renderGrid(): HTMLElement {
           class: 'absolute top-2 left-2 z-10 p-1.5 rounded-full bg-[var(--bg-surface)]/90 backdrop-blur-sm shadow-sm border transition-all ' +
             (b.favorite ? 'text-[var(--accent)] border-[var(--accent)]/50' : 'text-[var(--text-muted)] border-[var(--border-default)] opacity-0 group-hover:opacity-100 hover:text-[var(--accent)]'),
           title: b.favorite ? '取消收藏' : '收藏',
-          onclick: (e: Event) => { e.stopPropagation(); void quickFavorite(b); },
+          onclick: (e: Event) => { e.stopPropagation(); void quickFavorite(b, e.currentTarget as HTMLButtonElement, true); },
         }, iconStar(16)),
         h('div', { class: 'absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors' }),
       ),
