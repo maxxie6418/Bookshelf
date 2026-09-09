@@ -15,6 +15,8 @@ export interface InlineEditRow {
   save: () => Promise<boolean>;
   saveSilent: () => Promise<boolean>;
   cancel: () => void;
+  isDirty: () => boolean;
+  markClean: () => void;
 }
 
 const STATUS_OPTIONS: [Book['status'], string][] = [
@@ -56,13 +58,25 @@ export function metaToPatch(meta: BookMetadata, book?: Book): Partial<Book> {
   return patch;
 }
 
-export function createInlineEditRow(book: Book, handlers: InlineEditHandlers): InlineEditRow {
-  const statusSel = h('select', { class: inputCls + ' w-full' });
+export function createInlineEditRow(book: Book, handlers: InlineEditHandlers, opts: { batch?: boolean } = {}): InlineEditRow {
+  const batch = opts.batch === true;
+  let dirty = false;
+  const markDirty = () => { dirty = true; };
+  const isDirty = () => dirty;
+  const markClean = () => { dirty = false; };
+
+  const statusSel = h('select', {
+    class: inputCls + ' w-full',
+    onchange: markDirty,
+  });
   for (const [v, label] of STATUS_OPTIONS) {
     statusSel.append(h('option', { value: v, selected: book.status === v ? '' : null }, label));
   }
 
-  const catSel = h('select', { class: inputCls + ' w-full' });
+  const catSel = h('select', {
+    class: inputCls + ' w-full',
+    onchange: markDirty,
+  });
   catSel.append(h('option', { value: '' }, '（无分类）'));
   for (const c of state.categories) {
     catSel.append(h('option', { value: String(c.id), selected: book.category_id === c.id ? '' : null }, c.name));
@@ -71,24 +85,33 @@ export function createInlineEditRow(book: Book, handlers: InlineEditHandlers): I
   const ratingEl = h('input', {
     type: 'number', step: '0.1', min: '0', max: '10',
     class: inputCls + ' w-24', value: book.rating != null ? String(book.rating) : '', placeholder: '—',
+    oninput: markDirty,
   });
 
-  const favEl = h('input', { type: 'checkbox', class: 'w-4 h-4 rounded accent-[var(--accent)]' });
+  const favEl = h('input', {
+    type: 'checkbox', class: 'w-4 h-4 rounded accent-[var(--accent)]',
+    onchange: markDirty,
+  });
   favEl.checked = !!book.favorite;
 
-  const tagsEl = h('input', { class: inputCls + ' w-full', value: book.tags.join(', '), placeholder: '标签（逗号分隔）' });
+  const tagsEl = h('input', {
+    class: inputCls + ' w-full', value: book.tags.join(', '), placeholder: '标签（逗号分隔）',
+    oninput: markDirty,
+  });
 
   const saveBtn = h('button', {
     class: 'flex items-center justify-center w-7 h-7 rounded-lg text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/10 transition-colors shrink-0',
     title: '保存',
     onclick: () => void save(),
   }, iconCheck(15));
+  if (batch) saveBtn.classList.add('hidden');
 
   const cancelBtn = h('button', {
     class: 'flex items-center justify-center w-7 h-7 rounded-lg text-[var(--text-muted)] hover:text-red-500 hover:bg-red-500/10 transition-colors shrink-0',
     title: '取消',
     onclick: () => handlers.onCancel(),
   }, iconClose(15));
+  if (batch) cancelBtn.classList.add('hidden');
 
   async function doSave(): Promise<boolean> {
     const rating = ratingEl.value ? Number(ratingEl.value) : null;
@@ -106,6 +129,7 @@ export function createInlineEditRow(book: Book, handlers: InlineEditHandlers): I
         favorite: favEl.checked ? 1 : 0,
         tags: tagsEl.value.split(/[,，]/).map((s) => s.trim()).filter(Boolean),
       });
+      markClean();
       return true;
     } catch (e) {
       toast((e as Error).message, 'error');
@@ -172,5 +196,5 @@ export function createInlineEditRow(book: Book, handlers: InlineEditHandlers): I
     ),
   );
 
-  return { row, save, saveSilent, cancel: () => handlers.onCancel() };
+  return { row, save, saveSilent, cancel: () => handlers.onCancel(), isDirty, markClean };
 }

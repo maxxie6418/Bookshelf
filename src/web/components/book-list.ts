@@ -269,7 +269,7 @@ export function renderBookList(container: HTMLElement) {
   const saveAllBtn = h('button', {
     class: 'inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--accent)] text-[var(--accent)] rounded-lg hover:bg-[var(--accent)]/10 transition-all text-sm font-medium ' + (inBatch ? 'inline-flex' : 'hidden'),
     title: '保存当前页全部修改',
-    onclick: () => void saveAllBatch(),
+    onclick: (e: Event) => void saveAllBatch(e.currentTarget as HTMLButtonElement),
   }, iconCheck(16), '保存全部');
   const cancelAllBtn = h('button', {
     class: 'inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--border-default)] text-[var(--text-secondary)] rounded-lg hover:bg-[var(--bg-surface-hover)] transition-all text-sm ' + (inBatch ? 'inline-flex' : 'hidden'),
@@ -375,24 +375,42 @@ function clearFilters() {
   void refreshBooks();
 }
 
-// 批量编辑「保存全部」：逐行静默保存（无变化也走 PATCH，后端幂等），全部成功或部分失败后退出批量态并刷新
-async function saveAllBatch() {
+// 批量编辑「保存全部」：仅保存有改动的行；无改动行跳过。按钮进入加载态防重复提交。
+async function saveAllBatch(btn: HTMLButtonElement) {
   const rows = batchRows;
-  let okCount = 0;
+  let saved = 0;
+  let skipped = 0;
   let fail = false;
-  for (const inline of rows) {
-    try {
-      const ok = await inline.saveSilent();
-      if (ok) okCount++;
-      else fail = true;
-    } catch {
-      fail = true;
+  const dirtyRows = rows.filter((inline) => inline.isDirty());
+  skipped = rows.length - dirtyRows.length;
+  if (dirtyRows.length === 0) {
+    setState({ batchEdit: false });
+    await refresh(false, false);
+    toast('没有修改的内容');
+    return;
+  }
+  const originalText = btn.textContent ?? '';
+  btn.disabled = true;
+  btn.textContent = '保存中…';
+  try {
+    for (const inline of dirtyRows) {
+      try {
+        const ok = await inline.saveSilent();
+        if (ok) saved++;
+        else fail = true;
+      } catch {
+        fail = true;
+      }
     }
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
   }
   setState({ batchEdit: false });
   await refresh(false, false);
-  if (fail) toast(`已保存 ${okCount} 本，部分失败`, 'error');
-  else toast(`已保存 ${okCount} 本`);
+  if (fail) toast(`已保存 ${saved} 本，${skipped} 本无改动，部分失败`, 'error');
+  else if (saved > 0) toast(`已保存 ${saved} 本，${skipped} 本无改动`);
+  else toast(`没有修改的内容（${skipped} 本）`);
 }
 
 // 批量编辑「退出」：放弃未保存改动并退出批量态
@@ -659,7 +677,7 @@ function renderBatchTable(): HTMLElement {
         setState({ batchEdit: false });
         void refresh(false, false);
       },
-    });
+    }, { batch: true });
     batchRows.push(inline);
     if (i < books.length - 1) {
       inline.row.classList.add('border-b', 'border-[var(--border-subtle)]');
