@@ -2,13 +2,17 @@
 import { api } from '../api';
 import { setState, state } from '../state';
 import type { Book } from '../types';
-import { h, toast, renderCoverPlaceholder, renderStars, iconList, iconGrid, iconEdit, iconPlus, iconBookOpen, iconStar, iconRefresh, iconCheck, iconChevronDown, mainDomain } from '../ui';
+import { h, toast, renderCoverPlaceholder, renderStars, iconList, iconGrid, iconEdit, iconPlus, iconBookOpen, iconStar, iconRefresh, iconCheck, iconChevronDown, iconClose, mainDomain } from '../ui';
 import { renderDrawer } from './detail-drawer';
 import { openBookForm } from './book-form';
 import { refresh, refreshBooks, PAGE_SIZE } from '../refresh';
 import { createInlineEditRow, metaToPatch } from './book-inline-edit';
+import type { InlineEditRow } from './book-inline-edit';
 
 const STATUS_LABEL: Record<string, string> = { unread: '未读', reading: '在读', finished: '读完', shelved: '搁置' };
+
+// 批量编辑模式的活动行实例（供工具栏「保存全部」逐行静默保存）
+let batchRows: InlineEditRow[] = [];
 
 const STATUS_META: Record<string, { label: string; dot: string; bg: string; text: string }> = {
   unread:   { label: '未读',   dot: 'bg-[var(--text-muted)]',                       bg: 'bg-[var(--bg-surface-hover)]',              text: 'text-[var(--text-secondary)]' },
@@ -35,9 +39,9 @@ async function refreshMeta(b: Book, btn: HTMLButtonElement) {
       return;
     }
     const d = await api.fetchMetadata({ ...input, force: true });
-    const patch = metaToPatch(d);
+    const patch = metaToPatch(d, b);
     if (Object.keys(patch).length === 0) {
-      toast('未获取到可更新的元数据', 'error');
+      toast('书籍属性已填且无空白字段可更新；如需自动更新请先清空对应属性', 'error');
       return;
     }
     await api.updateBook(b.id, patch);
@@ -63,7 +67,7 @@ function renderTagChips(tags: string[]): HTMLElement {
       title: `筛选标签 #${t}`,
       onclick: (e: Event) => {
         e.stopPropagation();
-        setState({ filters: { ...state.filters, tag: t } });
+        setState({ batchEdit: false, filters: { ...state.filters, tag: t } });
         void refreshBooks();
       },
     }, `#${t}`));
@@ -156,7 +160,7 @@ function sortLabel(): string {
 }
 
 function applySort(value: string) {
-  setState({ filters: { ...state.filters, sort: value } });
+  setState({ batchEdit: false, filters: { ...state.filters, sort: value } });
   void refreshBooks();
 }
 
@@ -182,6 +186,10 @@ document.addEventListener('keydown', (e) => {
 export function renderBookList(container: HTMLElement) {
   container.replaceChildren();
   closeOpenSortMenu();
+  // 非表格视图 / 无数据 / 加载骨架时批量编辑态无意义，直接退出（避免额外渲染回路）
+  if (state.batchEdit && (state.view !== 'table' || state.books.length === 0 || state.loading)) {
+    state.batchEdit = false;
+  }
   const main = h('div', { class: 'p-4 sm:p-6 lg:p-8' });
 
   // 排序自定义下拉（替代原生 select，视觉与整体 UI 一致）
@@ -250,6 +258,25 @@ export function renderBookList(container: HTMLElement) {
     onclick: () => openBookForm(),
   }, iconPlus(18), '添加书籍');
 
+  // 批量编辑控制：非批量态（仅表格视图）显示「批量编辑」；批量态显示「保存全部/退出」
+  const inBatch = state.batchEdit;
+  const showBatchBtn = !inBatch && state.view === 'table' && state.books.length > 0;
+  const batchEditBtn = h('button', {
+    class: 'inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--border-default)] text-[var(--text-secondary)] rounded-lg hover:bg-[var(--bg-surface-hover)] hover:text-[var(--accent)] transition-all text-sm ' + (showBatchBtn ? 'hidden sm:inline-flex' : 'hidden'),
+    title: '当前页全部行进入编辑状态',
+    onclick: () => { setState({ batchEdit: true }); },
+  }, iconEdit(18), '编辑');
+  const saveAllBtn = h('button', {
+    class: 'inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--accent)] text-[var(--accent)] rounded-lg hover:bg-[var(--accent)]/10 transition-all text-sm font-medium ' + (inBatch ? 'inline-flex' : 'hidden'),
+    title: '保存当前页全部修改',
+    onclick: () => void saveAllBatch(),
+  }, iconCheck(16), '保存全部');
+  const cancelAllBtn = h('button', {
+    class: 'inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--border-default)] text-[var(--text-secondary)] rounded-lg hover:bg-[var(--bg-surface-hover)] transition-all text-sm ' + (inBatch ? 'inline-flex' : 'hidden'),
+    title: '放弃修改并退出批量编辑',
+    onclick: () => cancelAllBatch(),
+  }, iconClose(16), '退出');
+
   // 当前视图标题
   const viewTitle = getViewTitle();
   const statusButtons: { value: 'all' | 'unread' | 'reading' | 'finished' | 'shelved'; label: string }[] = [
@@ -269,7 +296,7 @@ export function renderBookList(container: HTMLElement) {
           : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]'),
       onclick: () => {
         const v = s.value === 'all' ? undefined : s.value;
-        setState({ filters: { ...state.filters, status: v as typeof state.filters.status } });
+        setState({ batchEdit: false, filters: { ...state.filters, status: v as typeof state.filters.status } });
         void refreshBooks();
       },
     }, s.label));
@@ -284,7 +311,7 @@ export function renderBookList(container: HTMLElement) {
         : 'border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--accent)] hover:border-[var(--accent)]/40'),
     title: favActive ? '取消只看收藏' : '只看收藏',
     onclick: () => {
-      setState({ filters: { ...state.filters, favorite: favActive ? undefined : true } });
+      setState({ batchEdit: false, filters: { ...state.filters, favorite: favActive ? undefined : true } });
       void refreshBooks();
     },
   }, iconStar(15), '收藏');
@@ -301,9 +328,9 @@ export function renderBookList(container: HTMLElement) {
         ),
         h('div', { class: 'flex items-center gap-2' },
           sortWrap,
-          viewToggle,
-          h('div', { class: 'w-px h-6 mx-1 bg-[var(--border-subtle)] hidden sm:block' }),
-          addBtn,
+          inBatch ? h('div', { class: 'hidden sm:flex items-center gap-2' }, saveAllBtn, cancelAllBtn)
+            : h('div', { class: 'flex items-center gap-2' }, viewToggle, h('div', { class: 'w-px h-6 mx-1 bg-[var(--border-subtle)] hidden sm:block' }), addBtn),
+          batchEditBtn,
         ),
       ),
     ),
@@ -346,6 +373,31 @@ function hasActiveFilters(): boolean {
 function clearFilters() {
   setState({ filters: { sort: state.filters.sort } });
   void refreshBooks();
+}
+
+// 批量编辑「保存全部」：逐行静默保存（无变化也走 PATCH，后端幂等），全部成功或部分失败后退出批量态并刷新
+async function saveAllBatch() {
+  const rows = batchRows;
+  let okCount = 0;
+  let fail = false;
+  for (const inline of rows) {
+    try {
+      const ok = await inline.saveSilent();
+      if (ok) okCount++;
+      else fail = true;
+    } catch {
+      fail = true;
+    }
+  }
+  setState({ batchEdit: false });
+  await refresh(false, false);
+  if (fail) toast(`已保存 ${okCount} 本，部分失败`, 'error');
+  else toast(`已保存 ${okCount} 本`);
+}
+
+// 批量编辑「退出」：放弃未保存改动并退出批量态
+function cancelAllBatch() {
+  setState({ batchEdit: false });
 }
 
 function renderSkeletonGrid(): HTMLElement {
@@ -441,10 +493,12 @@ function renderListContent(list: HTMLElement) {
     list.append(renderEmptyState());
     return;
   }
-  if (state.view === 'table') list.append(renderTable());
+  if (state.view === 'table') list.append(state.batchEdit ? renderBatchTable() : renderTable());
   else list.append(renderGrid());
-  const pag = renderPagination();
-  if (pag) list.append(pag);
+  if (!state.batchEdit) {
+    const pag = renderPagination();
+    if (pag) list.append(pag);
+  }
 }
 
 // 翻页控件：上一页 / 页码指示 / 下一页
@@ -495,14 +549,14 @@ function renderBookRow(b: Book): HTMLTableRowElement {
       title: '行内编辑',
       onclick: (e: Event) => {
         e.stopPropagation();
-        const editRow = createInlineEditRow(b, {
-          onCancel: () => editRow.replaceWith(renderBookRow(b)),
+        const inline = createInlineEditRow(b, {
+          onCancel: () => inline.row.replaceWith(renderBookRow(b)),
           onSaved: () => {
-            editRow.replaceWith(renderBookRow(b));
+            inline.row.replaceWith(renderBookRow(b));
             void refresh(false, false);
           },
         });
-        row.replaceWith(editRow);
+        row.replaceWith(inline.row);
       },
     }, iconEdit(18)),
   );
@@ -568,6 +622,49 @@ function renderTable(): HTMLElement {
       row.classList.add('border-b', 'border-[var(--border-subtle)]');
     }
     tbody.append(row);
+  }
+  table.append(thead, tbody);
+  inner.append(table);
+  wrap.append(inner);
+  return wrap;
+}
+
+// 批量行内编辑：当前页全部行进入编辑态；「保存全部/取消全部」由工具栏按钮驱动
+function renderBatchTable(): HTMLElement {
+  const wrap = h('div', { class: 'bg-[var(--bg-surface)] rounded-xl border border-[var(--border-default)] overflow-hidden shadow-paper' });
+  const inner = h('div', { class: 'overflow-x-auto' });
+  const table = h('table', { class: 'w-full text-sm' });
+  const thead = h('thead');
+  thead.append(h('tr', { class: 'border-b border-[var(--border-default)] text-left text-xs text-[var(--text-muted)] uppercase tracking-wider' },
+    h('th', { class: 'px-4 py-2 font-medium align-middle border-r border-[var(--border-subtle)]' }, '封面'),
+    h('th', { class: 'px-4 py-2 font-medium align-middle border-r border-[var(--border-subtle)]' }, '书名'),
+    h('th', { class: 'px-4 py-2 font-medium align-middle border-r border-[var(--border-subtle)]' }, '作者'),
+    h('th', { class: 'px-4 py-2 font-medium align-middle border-r border-[var(--border-subtle)]' }, '状态'),
+    h('th', { class: 'px-4 py-2 font-medium align-middle border-r border-[var(--border-subtle)]' }, '分类'),
+    h('th', { class: 'px-4 py-2 font-medium align-middle border-r border-[var(--border-subtle)]' }, '评分'),
+    h('th', { class: 'px-4 py-2 font-medium align-middle border-r border-[var(--border-subtle)]' }, '标签'),
+    h('th', { class: 'px-4 py-2 font-medium align-middle border-r border-[var(--border-subtle)]' }, '豆瓣链接'),
+    h('th', { class: 'px-4 py-2 font-medium align-middle text-right border-r border-[var(--border-subtle)]' }, '操作'),
+  ));
+  const tbody = h('tbody');
+  batchRows = [];
+  const books = state.books;
+  for (let i = 0; i < books.length; i++) {
+    const inline = createInlineEditRow(books[i], {
+      onCancel: () => {
+        // 批量模式下逐行取消：退出批量态
+        setState({ batchEdit: false });
+      },
+      onSaved: () => {
+        setState({ batchEdit: false });
+        void refresh(false, false);
+      },
+    });
+    batchRows.push(inline);
+    if (i < books.length - 1) {
+      inline.row.classList.add('border-b', 'border-[var(--border-subtle)]');
+    }
+    tbody.append(inline.row);
   }
   table.append(thead, tbody);
   inner.append(table);

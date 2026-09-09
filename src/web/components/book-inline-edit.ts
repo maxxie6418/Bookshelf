@@ -10,6 +10,13 @@ export interface InlineEditHandlers {
   onSaved: () => void;
 }
 
+export interface InlineEditRow {
+  row: HTMLTableRowElement;
+  save: () => Promise<boolean>;
+  saveSilent: () => Promise<boolean>;
+  cancel: () => void;
+}
+
 const STATUS_OPTIONS: [Book['status'], string][] = [
   ['unread', '未读'],
   ['reading', '在读'],
@@ -27,25 +34,29 @@ function coverEl(b: Book): HTMLElement {
   return renderCoverPlaceholder(b, 'table');
 }
 
-// 抓取元数据 → 更新字段；cover_url 仅非空时更新，douban_url 不予覆盖（防拿空值清掉原链接）
-export function metaToPatch(meta: BookMetadata): Partial<Book> {
-  const patch: Partial<Book> = {
-    title: meta.title ?? undefined,
-    author: meta.author ?? undefined,
-    translator: meta.translator ?? undefined,
-    publisher: meta.publisher ?? undefined,
-    publish_year: meta.publish_year ?? undefined,
-    page_count: meta.page_count ?? undefined,
-    subtitle: meta.subtitle ?? undefined,
-    isbn: meta.isbn ?? undefined,
-    description: meta.description ?? undefined,
-    rating: meta.douban_rating ?? undefined,
-  };
-  if (meta.cover_url) patch.cover_url = meta.cover_url;
+// 抓取元数据 → 更新字段；合并策略：仅当「抓取到值」且「该书当前字段为空」时才写入，
+// 已有内容的属性不覆盖（避免清理用户自定义内容）。想系统自动更新需先清空对应字段。
+// cover_url 仅非空时更新，douban_url 不予覆盖（防拿空值清掉原链接）。
+export function metaToPatch(meta: BookMetadata, book?: Book): Partial<Book> {
+  const isEmpty = (v: string | number | null | undefined): boolean =>
+    v == null || (typeof v === 'string' && v.trim() === '');
+
+  const patch: Partial<Book> = {};
+  if (meta.title && isEmpty(book?.title)) patch.title = meta.title;
+  if (meta.author && isEmpty(book?.author)) patch.author = meta.author;
+  if (meta.translator && isEmpty(book?.translator)) patch.translator = meta.translator;
+  if (meta.publisher && isEmpty(book?.publisher)) patch.publisher = meta.publisher;
+  if (meta.publish_year != null && isEmpty(book?.publish_year)) patch.publish_year = meta.publish_year;
+  if (meta.page_count != null && isEmpty(book?.page_count)) patch.page_count = meta.page_count;
+  if (meta.subtitle && isEmpty(book?.subtitle)) patch.subtitle = meta.subtitle;
+  if (meta.isbn && isEmpty(book?.isbn)) patch.isbn = meta.isbn;
+  if (meta.description && isEmpty(book?.description)) patch.description = meta.description;
+  if (meta.douban_rating != null && isEmpty(book?.rating)) patch.rating = meta.douban_rating;
+  if (meta.cover_url && isEmpty(book?.cover_url)) patch.cover_url = meta.cover_url;
   return patch;
 }
 
-export function createInlineEditRow(book: Book, handlers: InlineEditHandlers): HTMLTableRowElement {
+export function createInlineEditRow(book: Book, handlers: InlineEditHandlers): InlineEditRow {
   const statusSel = h('select', { class: inputCls + ' w-full' });
   for (const [v, label] of STATUS_OPTIONS) {
     statusSel.append(h('option', { value: v, selected: book.status === v ? '' : null }, label));
@@ -79,11 +90,11 @@ export function createInlineEditRow(book: Book, handlers: InlineEditHandlers): H
     onclick: () => handlers.onCancel(),
   }, iconClose(15));
 
-  async function save() {
+  async function doSave(): Promise<boolean> {
     const rating = ratingEl.value ? Number(ratingEl.value) : null;
     if (rating !== null && (Number.isNaN(rating) || rating < 0 || rating > 10)) {
       toast('评分需为 0–10 的数字', 'error');
-      return;
+      return false;
     }
     saveBtn.disabled = true;
     cancelBtn.disabled = true;
@@ -95,17 +106,32 @@ export function createInlineEditRow(book: Book, handlers: InlineEditHandlers): H
         favorite: favEl.checked ? 1 : 0,
         tags: tagsEl.value.split(/[,，]/).map((s) => s.trim()).filter(Boolean),
       });
-      toast('已保存');
-      handlers.onSaved();
+      return true;
     } catch (e) {
       toast((e as Error).message, 'error');
       saveBtn.disabled = false;
       cancelBtn.disabled = false;
+      return false;
     }
   }
 
+  // 保存当前行：成功提示并执行 handlers.onSaved（批量模式下由外部统一处理），失败返回 false
+  async function save(): Promise<boolean> {
+    const ok = await doSave();
+    if (ok) {
+      toast('已保存');
+      handlers.onSaved();
+    }
+    return ok;
+  }
+
+  // 静默保存（不触发 onSaved），供批量「保存全部」逐行调用后统一刷新
+  async function saveSilent(): Promise<boolean> {
+    return doSave();
+  }
+
   // 保持与表头一致的 9 列结构，避免 colspan 导致布局错乱
-  return h('tr', { class: 'bg-[var(--accent)]/5' },
+  const row = h('tr', { class: 'bg-[var(--accent)]/5' },
     // 1. 封面
     h('td', { class: 'px-4 py-2 align-middle' },
       h('div', { class: 'w-10 h-14 rounded-md overflow-hidden shadow-sm' }, coverEl(book)),
@@ -145,4 +171,6 @@ export function createInlineEditRow(book: Book, handlers: InlineEditHandlers): H
       ),
     ),
   );
+
+  return { row, save, saveSilent, cancel: () => handlers.onCancel() };
 }

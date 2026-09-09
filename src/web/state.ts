@@ -10,6 +10,7 @@ export const state = {
   viewMode: 'main' as 'main' | 'trash',
   filters: {} as Filters,
   books: [] as Book[],
+  batchEdit: false, // 表格视图「批量行内编辑」模式（当前页全部行进入编辑态）
   stats: null as Stats | null, // 侧栏聚合统计（总藏书/在读/分类/标签计数）
   total: 0,
   page: 1, // 当前列表页码（1 起）

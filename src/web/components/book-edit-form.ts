@@ -120,19 +120,24 @@ export function createBookEditForm(book?: Book, opts: { fetchLabel?: string } = 
     h('p', { class: 'text-xs text-[var(--text-muted)] mt-1' }, '可粘贴豆瓣链接（或 ISBN）自动获取元数据'),
   );
 
+  // 抓取回填：仅回填「当前为空」的字段，已有内容的属性不覆盖，避免清理用户自定义内容。
+  // 若希望由系统自动更新某属性，需先清空该输入框再点击抓取。
   function fill(meta: BookMetadata) {
-    els.title.value = meta.title ?? '';
-    els.author.value = meta.author ?? '';
-    els.translator.value = meta.translator ?? '';
-    els.publisher.value = meta.publisher ?? '';
-    els.publishYear.value = meta.publish_year != null ? String(meta.publish_year) : '';
-    els.pageCount.value = meta.page_count != null ? String(meta.page_count) : '';
-    els.subtitle.value = meta.subtitle ?? '';
-    els.isbn.value = meta.isbn ?? '';
-    els.description.value = meta.description ?? '';
-    els.coverUrl.value = meta.cover_url ?? '';
-    els.doubanUrl.value = meta.douban_url ?? els.doubanUrl.value;
-    els.rating.value = meta.douban_rating != null ? String(meta.douban_rating) : '';
+    const setIfEmpty = (el: HTMLInputElement | HTMLTextAreaElement, val: string | number | null | undefined) => {
+      if (el.value.trim() === '') el.value = val == null ? '' : String(val);
+    };
+    setIfEmpty(els.title, meta.title);
+    setIfEmpty(els.author, meta.author);
+    setIfEmpty(els.translator, meta.translator);
+    setIfEmpty(els.publisher, meta.publisher);
+    setIfEmpty(els.publishYear, meta.publish_year);
+    setIfEmpty(els.pageCount, meta.page_count);
+    setIfEmpty(els.subtitle, meta.subtitle);
+    setIfEmpty(els.isbn, meta.isbn);
+    setIfEmpty(els.description, meta.description);
+    setIfEmpty(els.coverUrl, meta.cover_url);
+    setIfEmpty(els.rating, meta.douban_rating);
+    if (els.doubanUrl.value.trim() === '') els.doubanUrl.value = meta.douban_url ?? '';
   }
 
   function collectPayload(): Record<string, unknown> {
