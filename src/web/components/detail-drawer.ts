@@ -195,6 +195,7 @@ export function renderDrawer(book: Book) {
           field('页数', current.page_count != null ? `${current.page_count} 页` : null),
           fieldLink('豆瓣链接', current.douban_url),
           field('录入时间', current.created_at),
+          field('更新时间', current.updated_at),
         ),
         h('div', { class: 'mt-3 pt-3 border-t border-[var(--border-subtle)]' },
           h('div', { class: 'text-xs font-medium text-[var(--text-muted)] mb-1.5' }, '简介'),

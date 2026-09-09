@@ -285,6 +285,10 @@ export function iconChevronLeft(size?: number) {
   return svgIcon(h('path', { d: 'M15.75 19.5 8.25 12l7.5-7.5' }), size);
 }
 
+export function iconChevronDown(size?: number) {
+  return svgIcon(h('path', { d: 'm19.5 8.25-7.5 7.5-7.5-7.5' }), size);
+}
+
 export function modal(title: string, content: HTMLElement, onClose?: () => void, sizeClass = 'max-w-2xl'): HTMLElement {
   const overlay = h('div', { class: 'fixed inset-0 z-40 bg-[var(--overlay-bg)] flex items-start justify-center p-4 pt-16 overflow-y-auto overscroll-contain opacity-0 transition-all duration-300 ease-[var(--ease-out-expo)]' });
   const box = h(

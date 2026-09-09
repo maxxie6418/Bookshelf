@@ -52,7 +52,7 @@ const fetchSchema = z.object({
 });
 
 const VALID_STATUS = ['unread', 'reading', 'finished', 'shelved'];
-const VALID_SORTS = ['updated_desc', 'updated_asc', 'title_asc', 'title_desc', 'rating_desc'];
+const VALID_SORTS = ['updated_desc', 'updated_asc', 'created_desc', 'created_asc', 'title_asc', 'title_desc', 'rating_desc'];
 
 function err(c: { json: (v: unknown, s?: number) => Response }, code: string, message: string, status = 400): Response {
   return c.json({ error: { code, message } }, status);

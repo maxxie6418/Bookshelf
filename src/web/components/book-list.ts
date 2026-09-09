@@ -2,7 +2,7 @@
 import { api } from '../api';
 import { setState, state } from '../state';
 import type { Book } from '../types';
-import { h, toast, renderCoverPlaceholder, renderStars, iconList, iconGrid, iconEdit, iconPlus, iconBookOpen, iconStar, iconRefresh, mainDomain } from '../ui';
+import { h, toast, renderCoverPlaceholder, renderStars, iconList, iconGrid, iconEdit, iconPlus, iconBookOpen, iconStar, iconRefresh, iconCheck, iconChevronDown, mainDomain } from '../ui';
 import { renderDrawer } from './detail-drawer';
 import { openBookForm } from './book-form';
 import { refresh, refreshBooks, PAGE_SIZE } from '../refresh';
@@ -138,21 +138,95 @@ export async function quickFavorite(b: Book, btn?: HTMLButtonElement, isGrid = f
   }
 }
 
+// 排序选项：value / 主标题 / 副标题
+const SORT_OPTIONS: { value: string; label: string; hint: string }[] = [
+  { value: 'updated_desc', label: '最近更新', hint: '更新时间' },
+  { value: 'updated_asc', label: '最早更新', hint: '更新时间' },
+  { value: 'created_desc', label: '最近录入', hint: '录入时间' },
+  { value: 'created_asc', label: '最早录入', hint: '录入时间' },
+  { value: 'title_asc', label: '书名 A→Z', hint: '' },
+  { value: 'title_desc', label: '书名 Z→A', hint: '' },
+  { value: 'rating_desc', label: '评分 高→低', hint: '' },
+];
+
+// 排序下拉触发器当前文本（选中项 label，找不到回退最近更新）
+function sortLabel(): string {
+  const cur = state.filters.sort ?? 'updated_desc';
+  return SORT_OPTIONS.find((o) => o.value === cur)?.label ?? '最近更新';
+}
+
+function applySort(value: string) {
+  setState({ filters: { ...state.filters, sort: value } });
+  void refreshBooks();
+}
+
+// 排序下拉使用单一 document 点击监听（模块级只注册一次），
+// 避免每次 renderBookList 全量重建时累积监听器；点击菜单外部或按 Esc 时收起
+let openSortMenu: HTMLElement | null = null;
+let openSortWrap: HTMLElement | null = null;
+let openSortBtn: HTMLButtonElement | null = null;
+function closeOpenSortMenu() {
+  openSortMenu?.classList.add('hidden');
+  openSortBtn?.setAttribute('aria-expanded', 'false');
+  openSortMenu = null;
+  openSortWrap = null;
+  openSortBtn = null;
+}
+document.addEventListener('click', (e) => {
+  if (openSortMenu && !openSortWrap?.contains(e.target as Node)) closeOpenSortMenu();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeOpenSortMenu();
+});
+
 export function renderBookList(container: HTMLElement) {
   container.replaceChildren();
+  closeOpenSortMenu();
   const main = h('div', { class: 'p-4 sm:p-6 lg:p-8' });
 
-  // 顶栏工具栏
-  const sortSel = h('select', {
-    class: 'text-sm bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-lg px-3 py-1.5 text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--accent)]/50 outline-none',
-    onchange: () => {
-      setState({ filters: { ...state.filters, sort: sortSel.value } });
-      void refreshBooks();
-    },
+  // 排序自定义下拉（替代原生 select，视觉与整体 UI 一致）
+  const sortWrap = h('div', { class: 'relative' });
+  const sortMenu = h('div', {
+    class: 'hidden absolute right-0 top-full mt-2 w-56 bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-xl shadow-2xl p-1 z-40 text-left max-h-80 overflow-y-auto',
   });
-  for (const [v, label] of [['updated_desc', '最近更新'], ['updated_asc', '最早更新'], ['title_asc', '书名 ↑'], ['title_desc', '书名 ↓'], ['rating_desc', '评分 ↓']] as const) {
-    sortSel.append(h('option', { value: v, selected: (state.filters.sort ?? 'updated_desc') === v ? '' : null }, label));
+  const curSort = state.filters.sort ?? 'updated_desc';
+  for (const opt of SORT_OPTIONS) {
+    const active = curSort === opt.value;
+    sortMenu.append(h('button', {
+      class: 'w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-sm transition-colors ' +
+        (active ? 'bg-[var(--accent)]/10 text-[var(--accent)] font-medium' : 'text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]'),
+      onclick: (e: Event) => {
+        e.stopPropagation();
+        closeOpenSortMenu();
+        if (opt.value !== curSort) applySort(opt.value);
+      },
+    },
+      h('span', { class: 'truncate' }, opt.label),
+      active ? iconCheck(14) : h('span', { class: 'text-xs text-[var(--text-muted)] whitespace-nowrap' }, opt.hint),
+    ));
   }
+  const sortBtn = h('button', {
+    class: 'inline-flex items-center gap-1.5 px-3 py-1.5 border border-[var(--border-default)] rounded-lg text-sm text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-all bg-[var(--bg-surface)]',
+    'aria-haspopup': 'listbox',
+    'aria-expanded': 'false',
+    onclick: (e: Event) => {
+      e.stopPropagation();
+      if (sortMenu.classList.contains('hidden')) {
+        closeOpenSortMenu();
+        sortMenu.classList.remove('hidden');
+        sortBtn.setAttribute('aria-expanded', 'true');
+        openSortMenu = sortMenu;
+        openSortWrap = sortWrap;
+        openSortBtn = sortBtn;
+      } else {
+        closeOpenSortMenu();
+      }
+    },
+  },
+    h('span', {}, sortLabel()),
+    iconChevronDown(14),
+  );
+  sortWrap.append(sortBtn, sortMenu);
 
   const viewToggle = h('div', { class: 'hidden sm:flex items-center bg-[var(--bg-page)] rounded-lg p-1' },
     h('button', {
@@ -226,8 +300,7 @@ export function renderBookList(container: HTMLElement) {
           favBtn,
         ),
         h('div', { class: 'flex items-center gap-2' },
-          h('span', { class: 'text-xs text-[var(--text-muted)] hidden sm:inline' }, '排序：'),
-          sortSel,
+          sortWrap,
           viewToggle,
           h('div', { class: 'w-px h-6 mx-1 bg-[var(--border-subtle)] hidden sm:block' }),
           addBtn,

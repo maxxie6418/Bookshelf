@@ -97,6 +97,8 @@ const DETAIL_SELECT = `
 const SORT_MAP: Record<string, string> = {
   updated_desc: 'b.updated_at DESC, b.id DESC',
   updated_asc: 'b.updated_at ASC, b.id ASC',
+  created_desc: 'b.created_at DESC, b.id DESC',
+  created_asc: 'b.created_at ASC, b.id ASC',
   title_asc: 'b.title COLLATE NOCASE ASC, b.id ASC',
   title_desc: 'b.title COLLATE NOCASE DESC, b.id DESC',
   rating_desc: 'b.rating DESC, b.id DESC',
