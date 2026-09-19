@@ -39,7 +39,9 @@ async function refreshMeta(b: Book, btn: HTMLButtonElement) {
       return;
     }
     const d = await api.fetchMetadata({ ...input, force: true });
-    const patch = metaToPatch(d, b);
+    // 列表数据不含 description 等详情字段，需取全量后再判断「非空不覆盖」，避免误判空值导致覆盖
+    const full = await api.getBook(b.id);
+    const patch = metaToPatch(d, full);
     if (Object.keys(patch).length === 0) {
       toast('书籍属性已填且无空白字段可更新；如需自动更新请先清空对应属性', 'error');
       return;
@@ -258,13 +260,19 @@ export function renderBookList(container: HTMLElement) {
     onclick: () => openBookForm(),
   }, iconPlus(18), '添加书籍');
 
-  // 批量编辑控制：非批量态（仅表格视图）显示「批量编辑」；批量态显示「保存全部/退出」
+  // 批量编辑入口：固定在排序下拉左侧占位（移动端仍隐藏）。表格视图可用，网格/空列表时置灰禁用，
+  // 避免切换视图时按钮出现/消失导致工具栏推挤；批量态隐藏，由「保存全部/退出」接管。
   const inBatch = state.batchEdit;
-  const showBatchBtn = !inBatch && state.view === 'table' && state.books.length > 0;
+  const canBatchEdit = !inBatch && state.view === 'table' && state.books.length > 0;
   const batchEditBtn = h('button', {
-    class: 'inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--border-default)] text-[var(--text-secondary)] rounded-lg hover:bg-[var(--bg-surface-hover)] hover:text-[var(--accent)] transition-all text-sm ' + (showBatchBtn ? 'hidden sm:inline-flex' : 'hidden'),
-    title: '当前页全部行进入编辑状态',
-    onclick: () => { setState({ batchEdit: true }); },
+    class: (inBatch ? 'hidden' : 'hidden sm:inline-flex') +
+      ' items-center gap-1.5 px-3 py-2 border rounded-lg text-sm transition-all ' +
+      (canBatchEdit
+        ? 'border-[var(--border-default)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--accent)]'
+        : 'border-[var(--border-subtle)] text-[var(--text-muted)] opacity-50 cursor-not-allowed'),
+    title: state.view === 'table' ? '当前页全部行进入编辑状态' : '批量编辑仅支持表格视图',
+    disabled: canBatchEdit ? undefined : 'disabled',
+    onclick: () => { if (canBatchEdit) setState({ batchEdit: true }); },
   }, iconEdit(18), '编辑');
   const saveAllBtn = h('button', {
     class: 'inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--accent)] text-[var(--accent)] rounded-lg hover:bg-[var(--accent)]/10 transition-all text-sm font-medium ' + (inBatch ? 'inline-flex' : 'hidden'),
@@ -327,10 +335,10 @@ export function renderBookList(container: HTMLElement) {
           favBtn,
         ),
         h('div', { class: 'flex items-center gap-2' },
+          batchEditBtn,
           sortWrap,
           inBatch ? h('div', { class: 'hidden sm:flex items-center gap-2' }, saveAllBtn, cancelAllBtn)
             : h('div', { class: 'flex items-center gap-2' }, viewToggle, h('div', { class: 'w-px h-6 mx-1 bg-[var(--border-subtle)] hidden sm:block' }), addBtn),
-          batchEditBtn,
         ),
       ),
     ),
@@ -545,7 +553,7 @@ function pageBtn(label: string, enabled: boolean, onclick: () => void): HTMLElem
 
 function renderBookRow(b: Book): HTMLTableRowElement {
   const meta = STATUS_META[b.status] ?? STATUS_META.unread;
-  const row = h('tr', { class: 'table-row cursor-pointer', onclick: () => renderDrawer(b) });
+  const row = h('tr', { class: 'table-row cursor-pointer', onclick: () => void renderDrawer(b) });
   const coverCell = h('td', { class: 'px-4 py-2 align-middle' },
     h('div', { class: 'w-10 h-14 rounded-md overflow-hidden shadow-sm' }, coverEl(b, 'table')),
   );
@@ -695,7 +703,7 @@ function renderGrid(): HTMLElement {
   for (const b of state.books) {
     const card = h('div', {
       class: "book-card group cursor-pointer relative bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-xl shadow-paper hover:shadow-float hover:-translate-y-0.5 transition-all duration-300",
-      onclick: () => renderDrawer(b),
+      onclick: () => void renderDrawer(b),
     });
     card.append(
       h('div', { class: 'relative aspect-[3/4] overflow-hidden rounded-t-xl shadow-md group-hover:shadow-xl transition-shadow' },

@@ -132,7 +132,15 @@ function editableMemoBlock(
   return wrap;
 }
 
-export function renderDrawer(book: Book) {
+// 列表接口为瘦身数据（不含简介 / 笔记 / 录入理由），打开抽屉前需补拉全量详情，
+// 否则这些字段会误显示为「暂无」，且编辑保存时可能用空值覆盖已存内容。
+export async function renderDrawer(listBook: Book) {
+  let book = listBook;
+  try {
+    book = await api.getBook(listBook.id);
+  } catch {
+    toast('书籍详情加载失败，简介 / 笔记 / 录入理由可能缺失', 'error');
+  }
   const modalEl = h('div', { class: 'fixed inset-0 z-50 hidden' });
   const backdrop = h('div', { class: 'modal-backdrop absolute inset-0 bg-[var(--overlay-bg)] transition-opacity duration-300 ease-[var(--ease-in-out)] opacity-0' });
   const drawer = h('aside', {
