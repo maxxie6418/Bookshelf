@@ -22,11 +22,11 @@
 
 - 手动填写完整书籍表单
 
-- CSV 表格批量导入（预览去重）
+- CSV 表格批量导入（预览去重，支持全字段备份还原）
 
 - AI Agent 接口代为录入
 
-- 粘贴豆瓣链接或 ISBN，自动抓取元数据与封面回填
+- 粘贴豆瓣链接或 ISBN，自动抓取元数据与封面回填；ISBN 抓取失败时自动按 NeoDB → Open Library → Google Books 兜底（均无需配置密钥）
 
 **📚 便捷管理**
 
@@ -37,6 +37,8 @@
 - 自定义分类与标签，支持筛选搜索
 
 - 一键批量导出 CSV 表格；软删除回收站可恢复
+
+- 编辑已有书籍时可直接上传本地图片作封面（存 R2，限 JPG/PNG/WebP/GIF ≤5MB）
 
 **☁️ 一键部署**
 
@@ -71,9 +73,9 @@
 | ----- | --------------------------------- | -------------------------------------------------- |
 | 前端    | Tailwind CSS + Vite               | 构建到 `dist/`，由 Worker 的 Workers Assets 托管（SPA）      |
 | 后端    | Cloudflare Worker（Hono）           | 单 Worker 承载全部 API                                  |
-| 数据库   | Cloudflare D1（SQLite，Drizzle ORM） | 关系数据存储                                             |
-| 对象存储  | R2                                | 封面：抓取后下载写入 R2，经 `/api/covers/:key` 站内代理路径下发        |
-| 边缘 KV | Cloudflare KV                     | 登录失败封锁、Agent Key 存储与限频计数、抓取节流、豆瓣元数据缓存、引导完成标记       |
+| 数据库   | Cloudflare D1（SQLite）             | 关系数据存储（参数化 SQL）                                    |
+| 对象存储  | R2                                | 封面：抓取/上传后写入 R2，经 `/api/covers/:key` 站内代理路径下发        |
+| 边缘 KV | Cloudflare KV                     | 登录失败封锁、Agent Key 存储与限频计数、豆瓣/兜底源元数据缓存、引导完成标记        |
 | 鉴权    | bcrypt + 签名 Cookie / Bearer Key   | 口令登录（无状态会话）；AI Agent 用 Bearer Key（SHA-256 哈希，仅存哈希） |
 | 可观测性  | wrangler observability            | `wrangler.jsonc` 开启，全局错误处理输出错误栈到运行日志               |
 
@@ -117,14 +119,10 @@ npm run deploy           # node scripts/deploy.mjs：构建 → wrangler deploy 
 | ------------------------ | -- | ----------------------------------------------------- |
 | `SESSION_SECRET`         | ✅  | 签名会话 Cookie 的 HMAC 密钥（≥16 位随机串；为空时自动派生回退密钥，仅建议生产显式设置） |
 | `INITIAL_ADMIN_PASSWORD` | 可选 | 未设置时默认 `admin/admin123`（首次请求自动 seed，首登强制改口令）          |
-| `AI_BASE_URL`            | 可选 | AI 集成相关（当前预留，未配置不影响核心功能）                              |
-| `AI_API_KEY`             | 可选 | 同上                                                    |
 
 ```bash
 npx wrangler secret put SESSION_SECRET
 npx wrangler secret put INITIAL_ADMIN_PASSWORD
-npx wrangler secret put AI_BASE_URL
-npx wrangler secret put AI_API_KEY
 ```
 
 本地开发 seed：`npm run seed`（本地 D1 建表 + seed 初始管理员）。
@@ -159,6 +157,8 @@ npx wrangler secret put AI_API_KEY
 - 🚀 v1.2.0：列表接口瘦身、加载 / 刷新拆分与搜索防抖、封面异步解码、字体减负等性能优化
 
 - 🚀 v1.1.1：性能优化与存储清理（字体自托管、首屏并发统计、豆瓣元数据 KV 缓存、封面复用、删除联动清理、设置页存储检查 / 清理）+ 列表与卡片布局打磨
+
+- 🚀 v1.3.0：手动上传封面（存 R2）、ISBN 抓取兜底源（NeoDB → Open Library → Google Books，无需密钥）、CSV 全量备份导出/导入（补齐简介/笔记/录入理由/封面列）；移动端抽屉菜单与一批体验修复、输入校验加固、URL 状态同步（刷新/分享不丢筛选）、字体产物减负（dist 16MB → 3.6MB）、死代码与依赖清理
 
 > 注：原 M4 规划为「自然语言 AI 查询 `/api/query`」，实际以 **面向外部 AI Agent 的 REST 接口（`/api/agent/*`）** 落地，能力为查询 / 新增 / 编辑 / 删除书籍。
 

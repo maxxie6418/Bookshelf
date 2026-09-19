@@ -62,6 +62,17 @@ export const api = {
   },
   fetchStats: () => request<Stats>('/books/stats'),
   getBook: (id: number) => request<Book>(`/books/${id}`),
+  uploadCover: async (id: number, file: File) => {
+    // multipart 上传：交给浏览器自动设置带 boundary 的 Content-Type，不能复用 request()
+    const fd = new FormData();
+    fd.append('file', file);
+    const res = await fetch(`${BASE}/books/${id}/cover`, { method: 'POST', credentials: 'same-origin', body: fd });
+    const body: any = await res.json().catch(() => null);
+    if (!res.ok) {
+      throw new ApiError(body?.error?.code ?? 'ERROR', body?.error?.message ?? `上传失败(${res.status})`, res.status);
+    }
+    return (body?.data ?? body) as { cover_url: string; key: string };
+  },
   createBook: (data: Partial<Book> & { title: string }) => request<Book>('/books', { method: 'POST', body: JSON.stringify(data) }),
   updateBook: (id: number, data: Partial<Book>) => request<Book>(`/books/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   softDelete: (id: number) => request<{ deleted: boolean }>(`/books/${id}`, { method: 'DELETE' }),

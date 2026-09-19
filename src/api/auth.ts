@@ -60,7 +60,8 @@ authRoutes.post('/login', async (c) => {
   const { password } = parsed.data;
 
   const user = await c.env.DB.prepare(
-    'SELECT id, username, display_name, password_hash, is_admin, must_change_password FROM users LIMIT 1',
+    // ORDER BY id：单用户系统恒取最早一条；即使历史库存在重复 admin 行（唯一索引补建失败的场景）也保证确定性
+    'SELECT id, username, display_name, password_hash, is_admin, must_change_password FROM users ORDER BY id LIMIT 1',
   ).first<UserRow>();
 
   if (!user || !(await verifyPassword(user.password_hash, password))) {

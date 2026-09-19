@@ -10,9 +10,24 @@ let notesColumnReady = false;
 let reasonColumnReady = false;
 let shelvedFavoriteReady = false;
 let subtitleColumnReady = false;
+let usersUniqueReady = false;
 
 // 引导完成标志：首次完整引导成功后写 KV，此后每个 isolate 的每次请求只需 1 次 KV 读即可跳过全部引导查询。
 const BOOTSTRAP_READY_KEY = 'bootstrap:ready';
+// 幂等增量迁移：为 users.username 补唯一索引（防并发 seed 竞态插入重复 admin 行）。
+// 全新库直接走 SCHEMA_STATEMENTS 内置索引；存量库若已有重复行会导致索引创建失败，
+// 此时仅记录日志不阻塞引导（重复行不影响登录，登录查询按 id 取最早一条）。
+async function ensureUsersUsernameUnique(env: Env): Promise<void> {
+  if (usersUniqueReady) return;
+  try {
+    await env.DB.prepare(
+      'CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users(username)',
+    ).run();
+  } catch (e) {
+    console.error('[bootstrap] users.username 唯一索引创建失败（可能存在历史重复行，请人工清理后再升级）：', (e as Error)?.message ?? e);
+  }
+  usersUniqueReady = true;
+}
 
 // 幂等建表：仅当 users 表缺失时执行内置 schema（与 migrations/0000_init.sql 一致），
 // 使「Deploy to Cloudflare」等不执行迁移命令的部署方式也能自动完成建表。
@@ -39,8 +54,9 @@ async function ensureBookNotesColumn(env: Env): Promise<void> {
     if (!hasNotes) {
       await env.DB.prepare('ALTER TABLE books ADD COLUMN notes TEXT').run();
     }
-  } catch {
-    // books 表不存在或其它错误时静默跳过，避免阻塞引导
+  } catch (e) {
+    // books 表不存在或其它错误时不阻塞引导，但记录日志便于排查（问题会延迟到业务 SQL 才暴露）
+    console.error('[bootstrap] ensure notes 列失败：', (e as Error)?.message ?? e);
   }
   notesColumnReady = true;
 }
@@ -55,8 +71,8 @@ async function ensureBookReasonColumn(env: Env): Promise<void> {
     if (!hasReason) {
       await env.DB.prepare('ALTER TABLE books ADD COLUMN reason TEXT').run();
     }
-  } catch {
-    // books 表不存在或其它错误时静默跳过，避免阻塞引导
+  } catch (e) {
+    console.error('[bootstrap] ensure reason 列失败：', (e as Error)?.message ?? e);
   }
   reasonColumnReady = true;
 }
@@ -71,8 +87,8 @@ async function ensureBookSubtitleColumn(env: Env): Promise<void> {
     if (!hasSubtitle) {
       await env.DB.prepare('ALTER TABLE books ADD COLUMN subtitle TEXT').run();
     }
-  } catch {
-    // books 表不存在或其它错误时静默跳过，避免阻塞引导
+  } catch (e) {
+    console.error('[bootstrap] ensure subtitle 列失败：', (e as Error)?.message ?? e);
   }
   subtitleColumnReady = true;
 }
@@ -161,8 +177,9 @@ FROM books`,
       'CREATE INDEX IF NOT EXISTS idx_books_isbn ON books(isbn)',
       'CREATE INDEX IF NOT EXISTS idx_books_deleted ON books(deleted_at)',
     ].map((sql) => env.DB.prepare(sql)));
-  } catch {
-    // 静默跳过，避免阻塞引导；异常场景下用户仍可手动执行 migrations/0003
+  } catch (e) {
+    // 不阻塞引导；异常场景下用户仍可手动执行 migrations/0003
+    console.error('[bootstrap] shelved/favorite 重建失败：', (e as Error)?.message ?? e);
   }
   shelvedFavoriteReady = true;
 }
@@ -186,6 +203,7 @@ export async function ensureAdmin(env: Env): Promise<void> {
   await ensureBookNotesColumn(env);
   await ensureBookReasonColumn(env);
   await ensureBookSubtitleColumn(env);
+  await ensureUsersUsernameUnique(env);
   await ensureBookShelvedFavoriteRebuild(env);
   if (seeded) {
     await markBootstrapReady(env);

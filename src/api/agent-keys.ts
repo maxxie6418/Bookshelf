@@ -6,6 +6,7 @@ import type { Env } from '../env';
 import { requireAuth } from '../lib/guard';
 import { listAgentKeys, createAgentKey, revealAgentKey, revokeAgentKey } from '../lib/agent-key';
 import { getSessionSecret } from '../lib/session';
+import { err } from '../lib/http';
 
 export const agentKeysRoutes = new Hono<{ Bindings: Env }>();
 agentKeysRoutes.use(requireAuth);
@@ -13,10 +14,6 @@ agentKeysRoutes.use(requireAuth);
 const createSchema = z.object({
   label: z.string().max(50).optional().default(''),
 });
-
-function err(c: { json: (v: unknown, s?: number) => Response }, code: string, message: string, status = 400): Response {
-  return c.json({ error: { code, message } }, status);
-}
 
 // GET /api/agent-keys（列表，仅元数据）
 agentKeysRoutes.get('/', async (c) => {

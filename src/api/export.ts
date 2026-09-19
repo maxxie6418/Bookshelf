@@ -1,9 +1,9 @@
 // 书单导出端点 /api/export/*
-// 鉴权：登录 session；导出全部未删除书籍（全字段 CSV）
+// 鉴权：登录 session；导出全部未删除书籍（全量备份语义：含简介/记录/录入理由/封面路径等全字段 CSV）
 import { Hono } from 'hono';
 import type { Env } from '../env';
 import { requireAuth } from '../lib/guard';
-import { listAllBooks } from '../lib/books';
+import { listAllBooksFull } from '../lib/books';
 import { toCsv, type BookCsvRow } from '../lib/csv';
 
 export const exportRoutes = new Hono<{ Bindings: Env }>();
@@ -31,6 +31,7 @@ export function exportBookToRow(b: {
   category_name: string | null;
   tags: string[];
   created_at: string;
+  cover_url?: string | null;
 }): BookCsvRow {
   return {
     '书名': b.title,
@@ -51,6 +52,7 @@ export function exportBookToRow(b: {
     '分类': b.category_name ?? '',
     '标签': b.tags.join(','),
     '录入时间': b.created_at ?? '',
+    '封面': b.cover_url ?? '',
   };
 }
 
@@ -62,9 +64,9 @@ exportRoutes.get('/template', async (c) => {
   });
 });
 
-// GET /api/export/books —— 全部未删除藏书
+// GET /api/export/books —— 全部未删除藏书（全量备份：listAllBooksFull 返回全字段，瘦身列表查询不含大字段）
 exportRoutes.get('/books', async (c) => {
-  const books = await listAllBooks(c.env.DB);
+  const books = await listAllBooksFull(c.env.DB);
   const csv = toCsv(books.map((b) => exportBookToRow(b)));
   return new Response(csv, {
     headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="books-${new Date().toISOString().slice(0, 10)}.csv"` },

@@ -1,6 +1,9 @@
 // CSV 工具：书单导出/导入共用。列定义、生成 CSV、解析 CSV。
 
 // 全字段列（顺序即表头顺序）。导出与导入共用此表。
+// v1.3.0 起为「全量备份」语义：包含简介/记录/录入理由等全部字段；封面列为站内路径
+// （/api/covers/:key，同实例重导入可直接还原封面；跨实例迁移时该列留空即可走占位图）。
+// 新增列一律追加在末尾，保持既有文件表头向后兼容。
 export const BOOK_COLUMNS = [
   '书名',
   '作者',
@@ -20,14 +23,17 @@ export const BOOK_COLUMNS = [
   '分类',
   '标签',
   '录入时间',
+  '封面',
 ] as const;
 
 export type BookCsvRow = Record<string, string | number | null>;
 
-// 单一单元格转义（含逗号/引号/换行时加引号）
+// 单一单元格转义（含逗号/引号/换行时加引号）；
+// 同时防 CSV 公式注入：以 = + - @ Tab 回车开头的单元格加 ' 前缀，避免 Excel/WPS 打开导出文件时执行公式
 function escapeCell(v: string | number | null): string {
   if (v === null || v === undefined) return '';
-  const s = String(v);
+  let s = String(v);
+  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
   if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
   return s;
 }

@@ -5,9 +5,9 @@ import type { Env } from '../env';
 import { requireAuth } from '../lib/guard';
 import {
   fetchDoubanMetadataByUrl,
-  fetchDoubanMetadataByIsbn,
   normalizeDoubanUrl,
 } from '../lib/book-metadata';
+import { fetchMetadataByIsbn } from '../lib/metadata-fallback';
 import { storeCover } from '../lib/covers';
 
 export const metadataRoutes = new Hono<{ Bindings: Env }>();
@@ -31,8 +31,9 @@ metadataRoutes.post('/fetch', async (c) => {
   }
 
   try {
+    // ISBN 模式走「豆瓣优先 + 兜底链」（neodb → openlibrary → googlebooks）；豆瓣链接模式仍只走豆瓣
     const meta = isbn
-      ? await fetchDoubanMetadataByIsbn(isbn, c.env.KV, { force })
+      ? await fetchMetadataByIsbn(isbn, c.env.KV, { force })
       : await fetchDoubanMetadataByUrl(url!, c.env.KV, { force });
 
     // 封面下载到 R2，返回站内代理路径；失败保留原图或置空（走前端纯色兜底）
@@ -46,11 +47,13 @@ metadataRoutes.post('/fetch', async (c) => {
       data: {
         ...meta,
         cover_url,
-        douban_url: url ? (normalizeDoubanUrl(url) ?? url) : null,
+        douban_url: url ? (normalizeDoubanUrl(url) ?? url) : meta.douban_url ?? null,
         douban_rating: meta.douban_rating,
       },
     });
   } catch (e) {
-    return c.json({ error: { code: 'FETCH_FAILED', message: (e as Error).message || '获取失败' } }, 400);
+    // 原始异常只进日志，不透出内部细节（可能含上游 URL/网络栈信息）
+    console.error('[metadata]', (e as Error)?.stack || e);
+    return c.json({ error: { code: 'FETCH_FAILED', message: '抓取失败：链接无效或数据源暂时不可用' } }, 400);
   }
 });

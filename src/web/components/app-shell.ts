@@ -1,7 +1,7 @@
 // 应用外壳：顶栏（搜索/主题/设置/退出）+ 侧栏（筛选）+ 主区（列表/回收站）
 import { api } from '../api';
 import { setState, state, subscribe } from '../state';
-import { h, iconSun, iconMoon, iconSettings, iconLogout, iconSearch, iconKey, iconGithub, iconCloudflare, iconDouban } from '../ui';
+import { h, iconSun, iconMoon, iconSettings, iconLogout, iconSearch, iconKey, iconGithub, iconCloudflare, iconDouban, iconMenu } from '../ui';
 import { refresh, refreshBooks } from '../refresh';
 import { renderBookList } from './book-list';
 import { renderTrash } from './trash-panel';
@@ -15,13 +15,17 @@ export function mountAppShell(root: HTMLElement) {
   // ---------- 顶栏 ----------
   const search = h('input', {
     type: 'search',
+    id: 'search-desktop',
     placeholder: '搜索书名、作者、ISBN...',
     value: state.filters.q ?? '',
     class: 'w-full pl-10 pr-4 py-2.5 rounded-xl bg-[var(--bg-page)] border border-[var(--border-default)] text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all placeholder:text-[var(--text-muted)]',
   });
   let timer: number | undefined;
   let mobileTimer: number | undefined;
+  let searchMobile: HTMLInputElement; // 移动端搜索框（navbar 构建时赋值）
   search.addEventListener('input', () => {
+    // 桌面/移动两个搜索框显示保持同步
+    searchMobile.value = search.value;
     window.clearTimeout(timer);
     timer = window.setTimeout(() => {
       setState({ filters: { ...state.filters, q: search.value.trim() || undefined } });
@@ -42,7 +46,7 @@ export function mountAppShell(root: HTMLElement) {
             ),
           ),
           h('span', { class: 'text-lg font-bold tracking-tight font-display hidden sm:block' }, '我的书架'),
-          h('span', { class: 'text-[11px] text-[var(--text-muted)] hidden sm:block leading-none mt-1' }, 'v1.2.0'),
+          h('span', { class: 'text-[11px] text-[var(--text-muted)] hidden sm:block leading-none mt-1' }, 'v1.3.0'),
         ),
         // 搜索（桌面端）
         h('div', { class: 'hidden md:flex flex-1 max-w-2xl mx-8' },
@@ -51,20 +55,29 @@ export function mountAppShell(root: HTMLElement) {
             search,
           ),
         ),
-        // 右侧留空（操作按钮已移至侧栏底部）
-        h('div', { class: 'w-10 shrink-0' }),
+        // 右侧：移动端菜单入口（桌面端侧栏常驻，占位对齐）
+        h('div', { class: 'w-10 shrink-0 flex justify-end' },
+          h('button', {
+            class: 'md:hidden p-2 -mr-2 rounded-lg text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] transition-colors',
+            'aria-label': '打开菜单',
+            onclick: openMobileMenu,
+          }, iconMenu(20)),
+        ),
       ),
       // 搜索（移动端）
       h('div', { class: 'md:hidden pb-3' },
         h('div', { class: 'relative' },
           h('span', { class: 'absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]' }, iconSearch(16)),
-          h('input', {
+          searchMobile = h('input', {
             type: 'search',
+            id: 'search-mobile',
             placeholder: '搜索书名、作者...',
             value: state.filters.q ?? '',
             class: 'w-full pl-10 pr-4 py-2 rounded-xl bg-[var(--bg-page)] border border-[var(--border-default)] text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all placeholder:text-[var(--text-muted)]',
             oninput: (e: Event) => {
-              const v = (e.target as HTMLInputElement).value.trim();
+              const input = e.target as HTMLInputElement;
+              search.value = input.value;
+              const v = input.value.trim();
               window.clearTimeout(mobileTimer);
               mobileTimer = window.setTimeout(() => {
                 setState({ filters: { ...state.filters, q: v || undefined } });
@@ -83,8 +96,34 @@ export function mountAppShell(root: HTMLElement) {
   const viewRoot = h('main', { class: 'flex-1 min-w-0' });
   const toastRoot = h('div', { id: 'toast-root', class: 'fixed bottom-4 right-4 z-[60] space-y-2 pointer-events-none' });
 
+  // ---------- 移动端抽屉菜单（承载侧栏内容：筛选/主题/设置/退出） ----------
+  const mobileMenuRoot = h('div', { class: 'fixed inset-0 z-50 hidden' });
+  const mobileBackdrop = h('div', { class: 'absolute inset-0 bg-[var(--overlay-bg)] opacity-0 transition-opacity duration-200' });
+  const mobilePanel = h('aside', {
+    class: 'absolute top-0 left-0 h-full w-72 max-w-[85vw] bg-[var(--bg-page)] border-r border-[var(--border-default)] shadow-2xl overflow-y-auto p-5 transform -translate-x-full transition-transform duration-300 ease-[var(--ease-out-expo)]',
+  });
+  mobileMenuRoot.append(mobileBackdrop, mobilePanel);
+  function openMobileMenu() {
+    mobilePanel.replaceChildren(renderSidebar());
+    mobileMenuRoot.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    requestAnimationFrame(() => {
+      mobileBackdrop.classList.remove('opacity-0');
+      mobilePanel.classList.remove('-translate-x-full');
+    });
+  }
+  function closeMobileMenu() {
+    mobileBackdrop.classList.add('opacity-0');
+    mobilePanel.classList.add('-translate-x-full');
+    document.body.style.overflow = '';
+    setTimeout(() => mobileMenuRoot.classList.add('hidden'), 200);
+  }
+  mobileBackdrop.addEventListener('click', closeMobileMenu);
+
   const render = () => {
     sidebarRoot.replaceChildren(renderSidebar());
+    // 移动端菜单展开中时同步刷新其内容（如切换主题后的图标状态）
+    if (!mobileMenuRoot.classList.contains('hidden')) mobilePanel.replaceChildren(renderSidebar());
     viewRoot.replaceChildren();
     if (state.viewMode === 'trash') renderTrash(viewRoot);
     else renderBookList(viewRoot);
@@ -94,6 +133,7 @@ export function mountAppShell(root: HTMLElement) {
   root.append(
     navbar,
     h('div', { class: 'flex min-h-[calc(100vh-64px)]' }, sidebarRoot, viewRoot),
+    mobileMenuRoot,
     toastRoot,
   );
 
@@ -201,8 +241,8 @@ function renderSidebar(): HTMLElement {
         h('div', { class: 'text-xs text-[var(--text-muted)] mt-0.5' }, '在读'),
       ),
     ),
-    // 分类区：占 2/3（flex-[2]），分类比标签多占侧栏区域
-    h('div', { class: 'shrink-0 flex-[2] min-h-0 overflow-y-hidden pb-1' },
+    // 分类区：占 2/3（flex-[2]），分类比标签多占侧栏区域；超出可滚动（此前 hidden 会裁剪掉多余分类）
+    h('div', { class: 'shrink-0 flex-[2] min-h-0 overflow-y-auto pb-1' },
       section('分类', [taxBody('category')], taxBtn('category')),
     ),
     // 分隔线：区分分类区与标签区

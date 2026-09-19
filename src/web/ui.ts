@@ -25,11 +25,10 @@ export function h(
     for (const [k, v] of Object.entries(attrs)) {
       if (v === undefined || v === null || v === false) continue;
       if (k === 'class') node.setAttribute('class', String(v));
-      else if (k === 'html') node.innerHTML = String(v);
       else if (k.startsWith('on') && typeof v === 'function') {
         node.addEventListener(k.slice(2).toLowerCase(), v as EventListener);
       } else {
-        node.setAttribute(k === 'viewBox' || k === 'strokeWidth' || k === 'strokeLinecap' || k === 'strokeLinejoin' ? k : k, v === true ? '' : String(v));
+        node.setAttribute(k, v === true ? '' : String(v));
       }
     }
   }
@@ -273,6 +272,10 @@ export function iconList(size?: number) {
   return svgIcon(h('path', { d: 'M3.75 5.25h16.5m-16.5 4.5h16.5m-16.5 4.5h16.5m-16.5 4.5h16.5' }), size);
 }
 
+export function iconMenu(size?: number) {
+  return svgIcon(h('path', { d: 'M3.75 6.75h16.5m-16.5 5.25h16.5m-16.5 5.25h16.5' }), size);
+}
+
 export function iconStar(size?: number) {
   return svgIcon(h('path', { d: 'M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111a.563.563 0 0 0 .475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 0 0-.182.557l1.285 5.385a.562.562 0 0 1-.84.61l-4.725-2.885a.562.562 0 0 0-.586 0L6.982 20.54a.562.562 0 0 1-.84-.61l1.285-5.386a.562.562 0 0 0-.182-.557l-4.204-3.602a.562.562 0 0 1 .321-.988l5.518-.442a.563.563 0 0 0 .475-.345L11.48 3.5Z' }), size);
 }
@@ -328,19 +331,6 @@ export function modal(title: string, content: HTMLElement, onClose?: () => void,
   return overlay;
 }
 
-export function badge(text: string, color?: string): HTMLElement {
-  return h(
-    'span',
-    {
-      class: 'inline-block px-2 py-0.5 rounded-full text-xs bg-[var(--bg-surface-hover)] text-[var(--text-secondary)] border border-[var(--border-subtle)]',
-      style: color
-        ? `background: color-mix(in srgb, ${color} 15%, var(--bg-surface-hover)); color: ${color};`
-        : undefined,
-    },
-    text,
-  );
-}
-
 // 评分星星 SVG（5 星制，10分制转5星显示）
 const STAR_PATH = 'M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z';
 
@@ -389,11 +379,6 @@ function hashTitle(title: string): number {
 // 根据书名哈希返回稳定的封面底色
 export function getCoverColor(title: string): string {
   return COVER_PALETTE[hashTitle(title) % COVER_PALETTE.length];
-}
-
-// 兼容旧版：返回基于书名的 1-12 序号（供尚未迁移的组件临时使用）
-export function getCoverPattern(title: string): number {
-  return (hashTitle(title) % 12) + 1;
 }
 
 // 精致的书脊/封面占位图

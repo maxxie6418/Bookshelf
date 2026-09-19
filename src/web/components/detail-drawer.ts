@@ -2,17 +2,9 @@
 import { api } from '../api';
 import type { Book } from '../types';
 import { h, toast, confirmDialog, renderCoverPlaceholder, renderStars, iconClose, iconEdit, iconStar, mainDomain } from '../ui';
+import { STATUS_LABEL, STATUS_META, FALLBACK_COLOR } from '../constants';
 import { createBookEditForm, labelCls } from './book-edit-form';
 import { refresh } from '../refresh';
-
-const STATUS_LABEL: Record<string, string> = { unread: '未读', reading: '在读', finished: '读完', shelved: '搁置' };
-
-const STATUS_META: Record<string, { label: string; dot: string; bg: string; text: string }> = {
-  unread:   { label: '未读',   dot: 'bg-[var(--text-muted)]',                 bg: 'bg-[var(--bg-surface-hover)]', text: 'text-[var(--text-secondary)]' },
-  reading:  { label: '在读',   dot: 'bg-[var(--accent)] status-reading-dot', bg: 'bg-[var(--accent)]/10',        text: 'text-[var(--accent)]' },
-  finished: { label: '已读完', dot: 'bg-[var(--accent)]',                      bg: 'bg-[var(--bg-surface-hover)]', text: 'text-[var(--text-secondary)]' },
-  shelved:  { label: '搁置',   dot: 'bg-[var(--text-muted)]/50',               bg: 'bg-[var(--bg-surface-hover)]', text: 'text-[var(--text-secondary)]' },
-};
 
 function field(label: string, value: string | number | null | undefined): HTMLElement {
   const text = value == null || value === '' ? '*' : String(value);
@@ -111,11 +103,10 @@ function editableMemoBlock(
               const value = ta.value.trim();
               if (value.length > maxLen) { toast(`最多 ${maxLen} 字`, 'error'); return; }
               try {
-                await api.updateBook(book.id, { [memoKey]: value || null });
-                const updated = await api.getBook(book.id);
+                // PATCH 响应即全量书籍，直接用作抽屉数据；notes/reason 不影响列表与统计，无需全局刷新
+                const updated = await api.updateBook(book.id, { [memoKey]: value || null });
                 toast('已保存');
                 book = updated;
-                await refresh(false, false);
                 editEl.classList.add('hidden');
                 renderView();
               } catch (e) {
@@ -132,15 +123,15 @@ function editableMemoBlock(
   return wrap;
 }
 
-// 列表接口为瘦身数据（不含简介 / 笔记 / 录入理由），打开抽屉前需补拉全量详情，
-// 否则这些字段会误显示为「暂无」，且编辑保存时可能用空值覆盖已存内容。
+// 防连点重复开抽屉：同一时间只允许一个详情抽屉实例
+let drawerOpen = false;
+
+// 列表接口为瘦身数据（不含简介 / 笔记 / 录入理由），打开抽屉后需补拉全量详情；
+// 抽屉先以骨架屏即时打开给出反馈，数据到达后再填充，避免慢网络下点击无响应或连点弹出多个抽屉。
 export async function renderDrawer(listBook: Book) {
+  if (drawerOpen) return;
+  drawerOpen = true;
   let book = listBook;
-  try {
-    book = await api.getBook(listBook.id);
-  } catch {
-    toast('书籍详情加载失败，简介 / 笔记 / 录入理由可能缺失', 'error');
-  }
   const modalEl = h('div', { class: 'fixed inset-0 z-50 hidden' });
   const backdrop = h('div', { class: 'modal-backdrop absolute inset-0 bg-[var(--overlay-bg)] transition-opacity duration-300 ease-[var(--ease-in-out)] opacity-0' });
   const drawer = h('aside', {
@@ -186,7 +177,7 @@ export async function renderDrawer(listBook: Book) {
           STATUS_LABEL[current.status],
         ),
         current.category_name ? h('span', { class: 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm bg-[var(--bg-surface-hover)] text-[var(--text-secondary)] border border-[var(--border-subtle)]' },
-          h('span', { class: 'w-2 h-2 rounded-sm', style: `background:${current.category_color ?? '#8a8274'}` }),
+          h('span', { class: 'w-2 h-2 rounded-sm', style: `background:${current.category_color ?? FALLBACK_COLOR}` }),
           current.category_name,
         ) : null,
         current.rating ? renderStars(current.rating, 'w-4 h-4') : null,
@@ -301,6 +292,7 @@ export async function renderDrawer(listBook: Book) {
       editField('收藏', h('label', { class: 'inline-flex items-center gap-2 cursor-pointer w-fit' }, els.favorite, h('span', { class: 'text-sm text-[var(--text-secondary)]' }, '加入收藏'))),
       editField('标签', els.tags),
       editField('封面 URL', els.coverUrl),
+      f.uploadField ? h('div', {}, f.uploadField) : null,
       editField('简介', els.description),
       editField('笔记', els.notes),
       editField('录入理由', els.reason),
@@ -317,9 +309,10 @@ export async function renderDrawer(listBook: Book) {
           if (err) { toast(err, 'error'); return; }
           const payload = f.collectPayload();
           try {
-            await api.updateBook(current.id, payload);
-            const updated = await api.getBook(current.id);
+            // updateBook 响应即全量书籍，无需再 getBook；编辑可能改状态/分类/标签（结构性变更），保留全量刷新同步列表与统计
+            const updated = await api.updateBook(current.id, payload);
             toast('已更新');
+            current = updated;
             await refresh(false, false);
             renderDisplay(updated);
           } catch (e) {
@@ -335,11 +328,31 @@ export async function renderDrawer(listBook: Book) {
 
   modalEl.append(backdrop, drawer);
 
+  // 加载骨架：补拉详情期间占位
+  function renderSkeleton() {
+    content.innerHTML = '';
+    footer.innerHTML = '';
+    content.append(
+      h('div', { class: 'p-6 space-y-4' },
+        h('div', { class: 'h-40 rounded-xl skeleton' }),
+        h('div', { class: 'h-8 w-2/3 rounded skeleton' }),
+        h('div', { class: 'h-4 w-1/2 rounded skeleton' }),
+        h('div', { class: 'grid grid-cols-2 gap-3' },
+          h('div', { class: 'h-16 rounded-xl skeleton' }),
+          h('div', { class: 'h-16 rounded-xl skeleton' }),
+          h('div', { class: 'h-16 rounded-xl skeleton' }),
+          h('div', { class: 'h-16 rounded-xl skeleton' }),
+        ),
+        h('div', { class: 'h-24 rounded-xl skeleton' }),
+      ),
+    );
+  }
+
   function open() {
     document.body.append(modalEl);
     modalEl.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
-    renderDisplay(book);
+    renderSkeleton();
     requestAnimationFrame(() => {
       backdrop.classList.remove('opacity-0');
       backdrop.classList.add('opacity-100');
@@ -356,9 +369,19 @@ export async function renderDrawer(listBook: Book) {
     drawer.classList.remove('translate-x-0');
     drawer.classList.add('translate-x-full');
     document.body.style.overflow = '';
+    drawerOpen = false;
     setTimeout(() => { modalEl.remove(); }, 200);
   }
 
   backdrop.addEventListener('click', close);
   open();
+
+  // 抽屉已打开，后台补拉全量详情（失败则降级用列表瘦身数据渲染并提示）
+  try {
+    book = await api.getBook(listBook.id);
+  } catch {
+    toast('书籍详情加载失败，简介 / 笔记 / 录入理由可能缺失', 'error');
+  }
+  if (!modalEl.isConnected) return; // 等待期间抽屉已被关闭
+  renderDisplay(book);
 }

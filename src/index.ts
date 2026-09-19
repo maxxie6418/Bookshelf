@@ -23,13 +23,16 @@ app.onError((e, c) => {
   return c.json({ error: 'Internal Server Error' }, 500);
 });
 
-// 所有 /api/* 请求先执行首次运行引导（自动建表 + seed 初始管理员），异常会统一走上面的 onError 记录到日志。
+// 健康检查注册在引导中间件之前：bootstrap 故障时 /api/health 仍可探活，
+// 不会与「Worker 活着但 DB 坏」的场景连坐（deep 探测见 api/health.ts）。
+app.route('/api/health', healthRoutes);
+
+// 其余 /api/* 请求先执行首次运行引导（自动建表 + seed 初始管理员），异常会统一走上面的 onError 记录到日志。
 app.use('/api/*', async (c, next) => {
   await ensureAdmin(c.env);
   await next();
 });
 
-app.route('/api/health', healthRoutes);
 app.route('/api/auth', authRoutes);
 app.route('/api/books', booksRoutes);
 app.route('/api/books/metadata', metadataRoutes);

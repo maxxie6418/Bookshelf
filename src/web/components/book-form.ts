@@ -31,6 +31,7 @@ export function openBookForm(book?: Book) {
     field('收藏', h('label', { class: 'inline-flex items-center gap-2 cursor-pointer w-fit' }, els.favorite, h('span', { class: 'text-sm text-[var(--text-secondary)]' }, '加入收藏'))),
     field('标签', els.tags),
     field('封面 URL', els.coverUrl),
+    f.uploadField ? h('div', { class: '-mt-1.5' }, f.uploadField) : null,
     field('简介', els.description),
     field('记录', els.notes),
     field('录入理由', els.reason),

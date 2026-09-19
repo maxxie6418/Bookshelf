@@ -2,6 +2,9 @@
 import type { KVNamespace } from '@cloudflare/workers-types';
 import { fetchWithRetry } from './fetch-utils';
 
+// source 取值与 books 表 CHECK 约束一致（'douban','neodb','openlibrary','googlebooks','manual'）
+export type MetadataSource = 'douban' | 'neodb' | 'openlibrary' | 'googlebooks';
+
 export interface BookMetadata {
   title: string | null;
   author: string | null;
@@ -14,12 +17,15 @@ export interface BookMetadata {
   description: string | null;
   cover_url: string | null;
   douban_rating: number | null;
-  source: 'douban';
+  source: MetadataSource;
+  // 兜底源命中时反查到的豆瓣链接（豆瓣源本身由端点按入参回填）
+  douban_url?: string | null;
 }
 
 // ===== KV 元数据缓存 =====
-// 键：meta:douban:subject:{subjectId} / meta:douban:isbn:{isbn}；值：{ v:1, cached_at, meta }
-// 默认 TTL 24h；手动抓取刷新可传 force 绕过缓存重新拉取
+// 键：meta:{source}:subject:{subjectId} / meta:{source}:isbn:{isbn}；值：{ v:1, cached_at, meta }
+// 默认 TTL 24h；手动抓取刷新可传 force 绕过缓存重新拉取。
+// 缓存读写工具同时供兜底源（neodb/openlibrary/googlebooks）复用。
 const METADATA_CACHE_TTL = 86400;
 const SUBJECT_RE = /subject\/(\d+)/;
 
@@ -33,7 +39,7 @@ interface CachedMeta {
   meta: BookMetadata;
 }
 
-async function readMetaCache(kv: KVNamespace | undefined, key: string): Promise<BookMetadata | null> {
+export async function readMetaCache(kv: KVNamespace | undefined, key: string): Promise<BookMetadata | null> {
   if (!kv) return null;
   try {
     const raw = await kv.get(key);
@@ -46,7 +52,7 @@ async function readMetaCache(kv: KVNamespace | undefined, key: string): Promise<
   }
 }
 
-async function writeMetaCache(kv: KVNamespace | undefined, key: string, meta: BookMetadata): Promise<void> {
+export async function writeMetaCache(kv: KVNamespace | undefined, key: string, meta: BookMetadata): Promise<void> {
   if (!kv) return;
   try {
     const value: CachedMeta = { v: 1, cached_at: new Date().toISOString(), meta };

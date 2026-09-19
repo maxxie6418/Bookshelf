@@ -49,19 +49,32 @@ interface PreviewRow {
   fields: unknown;
 }
 
-// 顶部工具栏按钮：导出（下拉）+ 导入
+// 顶部工具栏按钮：导出（下拉）+ 导入。
+// 关闭外部点击的下拉菜单用模块级单一 document 监听（参照排序下拉的模式），
+// 避免每次渲染本组件（每次打开设置弹窗都会调用）都注册新监听器造成累积泄漏。
+let openExportMenu: HTMLElement | null = null;
+let openExportWrap: HTMLElement | null = null;
+function closeExportMenu() {
+  openExportMenu?.classList.add('hidden');
+  openExportMenu = null;
+  openExportWrap = null;
+}
+document.addEventListener('click', (e) => {
+  if (openExportMenu && !openExportWrap?.contains(e.target as Node)) closeExportMenu();
+});
+
 export function renderImportExportButtons(): HTMLElement {
-  const wrapper = h('div', { class: 'relative hidden sm:block' });
+  const wrapper = h('div', { class: 'relative block' });
   const menu = h('div', {
     class: 'hidden absolute right-0 top-full mt-2 w-40 bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-xl shadow-2xl p-1 z-40 text-left',
   },
     h('button', {
       class: 'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors',
-      onclick: async () => { menu.classList.add('hidden'); await exportTemplate(); },
+      onclick: async () => { closeExportMenu(); await exportTemplate(); },
     }, '导出模版'),
     h('button', {
       class: 'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors',
-      onclick: async () => { menu.classList.add('hidden'); await exportBooks(); },
+      onclick: async () => { closeExportMenu(); await exportBooks(); },
     }, '导出内容'),
   );
 
@@ -70,7 +83,14 @@ export function renderImportExportButtons(): HTMLElement {
     title: '导出',
     onclick: (e: Event) => {
       e.stopPropagation();
-      menu.classList.toggle('hidden');
+      if (openExportMenu === menu) {
+        closeExportMenu();
+        return;
+      }
+      closeExportMenu();
+      menu.classList.remove('hidden');
+      openExportMenu = menu;
+      openExportWrap = wrapper;
     },
   }, iconDownload(16), '导出');
 
@@ -90,9 +110,6 @@ export function renderImportExportButtons(): HTMLElement {
     title: '导入 CSV',
     onclick: () => file.click(),
   }, iconUpload(16), '导入');
-
-  const closeMenu = (e: Event) => { if (!wrapper.contains(e.target as Node)) menu.classList.add('hidden'); };
-  document.addEventListener('click', closeMenu);
 
   wrapper.append(exportBtn, menu, importBtn, file);
   return wrapper;

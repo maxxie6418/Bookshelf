@@ -15,6 +15,7 @@ export const state = {
   total: 0,
   page: 1, // 当前列表页码（1 起）
   loading: false,
+  listError: false, // 列表加载失败标记：区分「空书架」与「加载失败」（失败态提供重试按钮）
   categories: [] as Category[],
   tags: [] as Tag[],
   drawerBook: null as Book | null,

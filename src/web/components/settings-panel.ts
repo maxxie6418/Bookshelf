@@ -3,11 +3,12 @@ import { api } from '../api';
 import { setState, state } from '../state';
 import type { StorageCheckResult } from '../types';
 import { h, toast, modal, iconTrash, iconCopy, iconSearch, iconRefresh, confirmDialog } from '../ui';
+import { INPUT_CLS } from '../constants';
 import { renderImportExportButtons } from './import-export';
 import { renderTaxonomyManage } from './manage-taxonomy';
 import { refresh } from '../refresh';
 
-const inputCls = 'w-full px-3.5 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 placeholder:text-[var(--text-muted)] transition-colors';
+const inputCls = INPUT_CLS;
 
 // 预置：发给外部 AI 的系统提示词（接入说明）。
 // 主指令在前，接口与 Key 配置说明放末尾，便于用户先复制提示词、再复制 Key 顺着填。

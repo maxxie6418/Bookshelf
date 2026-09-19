@@ -7,7 +7,7 @@ export default {
       fontFamily: {
         sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC', 'sans-serif'],
         serif: ['Noto Serif SC', 'Georgia', 'serif'],
-        mono: ['JetBrains Mono', 'monospace'],
+        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'Liberation Mono', 'monospace'],
       },
       colors: {
         shelf: {

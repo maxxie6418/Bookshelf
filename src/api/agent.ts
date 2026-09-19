@@ -12,36 +12,19 @@ import * as categories from '../lib/categories';
 import * as tags from '../lib/tags';
 import { toCsv } from '../lib/csv';
 import { exportBookToRow } from './export';
+import { bookSchema } from '../lib/book-schema';
+import { err, intParam, idParam } from '../lib/http';
 import {
   fetchDoubanMetadataByUrl,
-  fetchDoubanMetadataByIsbn,
   normalizeDoubanUrl,
 } from '../lib/book-metadata';
+import { fetchMetadataByIsbn } from '../lib/metadata-fallback';
 import { storeCover } from '../lib/covers';
 
 export const agentRoutes = new Hono<{ Bindings: Env; Variables: { agentHash: string } }>();
 agentRoutes.use(requireAgentKey);
 
-const bookSchema = z.object({
-  title: z.string().min(1, '书名必填'),
-  author: z.string().nullable().optional(),
-  translator: z.string().nullable().optional(),
-  publisher: z.string().nullable().optional(),
-  publish_year: z.number().int().nullable().optional(),
-  page_count: z.number().int().nullable().optional(),
-  subtitle: z.string().nullable().optional(),
-  isbn: z.string().nullable().optional(),
-  description: z.string().nullable().optional(),
-  notes: z.string().max(2000, '记录最多 2000 字').nullable().optional(),
-  reason: z.string().max(1000, '录入理由最多 1000 字').nullable().optional(),
-  cover_url: z.string().nullable().optional(),
-  douban_url: z.string().nullable().optional(),
-  rating: z.number().nullable().optional(),
-  status: z.enum(['unread', 'reading', 'finished', 'shelved']).optional(),
-  favorite: z.union([z.literal(0), z.literal(1)]).optional(),
-  category_id: z.number().int().nullable().optional(),
-  tags: z.array(z.string()).optional(),
-});
+// 与 /api/books 共用同一份 schema（含字段长度/枚举/URL 校验），避免两份定义漂移
 const bookCreateSchema = bookSchema;
 const bookUpdateSchema = bookSchema.partial();
 
@@ -53,10 +36,6 @@ const fetchSchema = z.object({
 
 const VALID_STATUS = ['unread', 'reading', 'finished', 'shelved'];
 const VALID_SORTS = ['updated_desc', 'updated_asc', 'created_desc', 'created_asc', 'title_asc', 'title_desc', 'rating_desc'];
-
-function err(c: { json: (v: unknown, s?: number) => Response }, code: string, message: string, status = 400): Response {
-  return c.json({ error: { code, message } }, status);
-}
 
 function rateLimited(c: { json: (v: unknown, s?: number) => Response }, retryAfter: number): Response {
   return c.json({
@@ -71,25 +50,26 @@ agentRoutes.get('/books', async (c) => {
   if (status && !VALID_STATUS.includes(status)) return err(c, 'VALIDATION_ERROR', 'status 取值非法');
   const sort = q.sort ?? 'updated_desc';
   if (!VALID_SORTS.includes(sort)) return err(c, 'VALIDATION_ERROR', 'sort 取值非法');
-  const categoryId = q.category_id ? Number(q.category_id) : undefined;
+  const categoryId = intParam(q.category_id);
 
   const data = await books.listBooks(c.env.DB, {
     status,
     favorite: q.favorite === '1',
-    categoryId: Number.isNaN(categoryId ?? NaN) ? undefined : categoryId,
+    categoryId,
     tag: q.tag,
     q: q.q,
     sort,
     trash: false,
-    limit: q.limit ? Number(q.limit) : undefined,
-    offset: q.offset ? Number(q.offset) : undefined,
+    limit: intParam(q.limit),
+    offset: intParam(q.offset),
   });
   return c.json({ data });
 });
 
 // GET /api/agent/books/:id（详情）
 agentRoutes.get('/books/:id', async (c) => {
-  const id = Number(c.req.param('id'));
+  const id = idParam(c.req.param('id'));
+  if (id == null) return err(c, 'VALIDATION_ERROR', '非法的书籍 ID');
   const book = await books.getBook(c.env.DB, id);
   if (!book) return err(c, 'NOT_FOUND', '不存在', 404);
   return c.json({ data: book });
@@ -131,8 +111,9 @@ agentRoutes.post('/books/metadata/fetch', async (c) => {
   if (!url && !isbn) return err(c, 'VALIDATION_ERROR', '请提供 url 或 isbn');
 
   try {
+    // ISBN 模式走「豆瓣优先 + 兜底链」；豆瓣链接模式仍只走豆瓣
     const meta = isbn
-      ? await fetchDoubanMetadataByIsbn(isbn, c.env.KV, { force })
+      ? await fetchMetadataByIsbn(isbn, c.env.KV, { force })
       : await fetchDoubanMetadataByUrl(url!, c.env.KV, { force });
 
     // 封面下载到 R2，返回站内代理路径；失败保留原图或置空（前端走纯色兜底）
@@ -146,12 +127,14 @@ agentRoutes.post('/books/metadata/fetch', async (c) => {
       data: {
         ...meta,
         cover_url,
-        douban_url: url ? (normalizeDoubanUrl(url) ?? url) : null,
+        douban_url: url ? (normalizeDoubanUrl(url) ?? url) : meta.douban_url ?? null,
         douban_rating: meta.douban_rating,
       },
     });
   } catch (e) {
-    return err(c, 'FETCH_FAILED', (e as Error).message || '获取失败');
+    // 原始异常只进日志，不透出内部细节（可能含上游 URL/网络栈信息）
+    console.error('[agent:metadata]', (e as Error)?.stack || e);
+    return err(c, 'FETCH_FAILED', '抓取失败：链接无效或数据源暂时不可用');
   }
 });
 
@@ -160,7 +143,8 @@ agentRoutes.patch('/books/:id', async (c) => {
   const wl = await checkWriteLimit(c.env.KV, c.get('agentHash'));
   if (!wl.allowed) return rateLimited(c, wl.retryAfter);
 
-  const id = Number(c.req.param('id'));
+  const id = idParam(c.req.param('id'));
+  if (id == null) return err(c, 'VALIDATION_ERROR', '非法的书籍 ID');
   const body = await c.req.json().catch(() => null);
   const parsed = bookUpdateSchema.safeParse(body);
   if (!parsed.success) return err(c, 'VALIDATION_ERROR', parsed.error.issues[0]?.message ?? '参数错误');
@@ -176,7 +160,8 @@ agentRoutes.delete('/books/:id', async (c) => {
   const dl = await checkDeleteLimit(c.env.KV, c.get('agentHash'));
   if (!dl.allowed) return rateLimited(c, dl.retryAfter);
 
-  const id = Number(c.req.param('id'));
+  const id = idParam(c.req.param('id'));
+  if (id == null) return err(c, 'VALIDATION_ERROR', '非法的书籍 ID');
   const ok = await books.softDelete(c.env.DB, id);
   if (!ok) return err(c, 'NOT_FOUND', '不存在或已在回收站', 404);
   return c.json({ data: { id, deleted: true } });

@@ -67,7 +67,7 @@ body {
 }
 
 .font-mono {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
 }
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -121,22 +121,24 @@ body {
   from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
 }
-.view-grid .book-card {
+/* 入场动画仅在列表集合变化时由 renderGrid 加上 .animate-in 播放一次，
+   无关重渲染（切主题、开关设置等）不重放 */
+.view-grid.animate-in .book-card {
   opacity: 0;
   animation: fadeInUp 0.25s ease forwards;
 }
-.view-grid .book-card:nth-child(1) { animation-delay: 0.02s; }
-.view-grid .book-card:nth-child(2) { animation-delay: 0.04s; }
-.view-grid .book-card:nth-child(3) { animation-delay: 0.06s; }
-.view-grid .book-card:nth-child(4) { animation-delay: 0.08s; }
-.view-grid .book-card:nth-child(5) { animation-delay: 0.10s; }
-.view-grid .book-card:nth-child(6) { animation-delay: 0.12s; }
-.view-grid .book-card:nth-child(7) { animation-delay: 0.14s; }
-.view-grid .book-card:nth-child(8) { animation-delay: 0.16s; }
-.view-grid .book-card:nth-child(9) { animation-delay: 0.18s; }
-.view-grid .book-card:nth-child(10) { animation-delay: 0.20s; }
-.view-grid .book-card:nth-child(11) { animation-delay: 0.22s; }
-.view-grid .book-card:nth-child(12) { animation-delay: 0.24s; }
+.view-grid.animate-in .book-card:nth-child(1) { animation-delay: 0.02s; }
+.view-grid.animate-in .book-card:nth-child(2) { animation-delay: 0.04s; }
+.view-grid.animate-in .book-card:nth-child(3) { animation-delay: 0.06s; }
+.view-grid.animate-in .book-card:nth-child(4) { animation-delay: 0.08s; }
+.view-grid.animate-in .book-card:nth-child(5) { animation-delay: 0.10s; }
+.view-grid.animate-in .book-card:nth-child(6) { animation-delay: 0.12s; }
+.view-grid.animate-in .book-card:nth-child(7) { animation-delay: 0.14s; }
+.view-grid.animate-in .book-card:nth-child(8) { animation-delay: 0.16s; }
+.view-grid.animate-in .book-card:nth-child(9) { animation-delay: 0.18s; }
+.view-grid.animate-in .book-card:nth-child(10) { animation-delay: 0.20s; }
+.view-grid.animate-in .book-card:nth-child(11) { animation-delay: 0.22s; }
+.view-grid.animate-in .book-card:nth-child(12) { animation-delay: 0.24s; }
 
 .table-row { transition: background-color 0.15s ease; }
 .table-row:hover { background-color: var(--bg-surface-hover); }

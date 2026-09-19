@@ -6,6 +6,7 @@
 import { api } from '../api';
 import { state } from '../state';
 import { h, toast, iconPlus, iconEdit, iconTrash } from '../ui';
+import { FALLBACK_COLOR } from '../constants';
 import { refresh } from '../refresh';
 
 type Kind = 'category' | 'tag';
@@ -71,7 +72,7 @@ function row(kind: Kind, item: { id: number; name: string; count: number; color?
 
   return h('div', { class: 'flex items-center gap-2 px-2 py-1.5 rounded-xl border border-transparent hover:border-[var(--border-subtle)] hover:bg-[var(--bg-surface-hover)]/60 transition-colors' },
     kind === 'category'
-      ? h('span', { class: 'w-3 h-3 rounded-md shrink-0 ring-1 ring-black/10', style: `background:${item.color ?? '#8a8274'}` })
+      ? h('span', { class: 'w-3 h-3 rounded-md shrink-0 ring-1 ring-black/10', style: `background:${item.color ?? FALLBACK_COLOR}` })
       : h('span', { class: 'text-[var(--accent)] text-xs font-bold shrink-0' }, '#'),
     input,
     h('span', { class: 'text-[11px] text-[var(--text-muted)] font-mono shrink-0 tabular-nums', title: '关联书籍数' }, String(item.count ?? 0)),

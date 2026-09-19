@@ -148,8 +148,10 @@ export async function listBooks(db: D1Database, q: ListQuery) {
     params.push(q.tag);
   }
   if (q.q) {
-    const like = `%${q.q}%`;
-    where.push('(b.title LIKE ? OR b.author LIKE ? OR b.isbn LIKE ?)');
+    // 转义 LIKE 通配符，避免用户输入 %/_ 使条件退化为全匹配；ESCAPE 指定转义符
+    const escaped = q.q.replace(/[\\%_]/g, (ch) => '\\' + ch);
+    const like = `%${escaped}%`;
+    where.push("(b.title LIKE ? ESCAPE '\\' OR b.author LIKE ? ESCAPE '\\' OR b.isbn LIKE ? ESCAPE '\\')");
     params.push(like, like, like);
   }
 
@@ -179,6 +181,7 @@ export async function listBooks(db: D1Database, q: ListQuery) {
 }
 
 // 导出用：分页拉取全部未删除书籍（每页 500，直至取完）
+// 注意：走列表瘦身查询，不含 description / notes / reason；全量备份导出请用 listAllBooksFull()
 export async function listAllBooks(db: D1Database): Promise<BookListItem[]> {
   const out: BookListItem[] = [];
   let offset = 0;
@@ -186,6 +189,30 @@ export async function listAllBooks(db: D1Database): Promise<BookListItem[]> {
   for (;;) {
     const { items } = await listBooks(db, { trash: false, limit: pageSize, offset, sort: 'title_asc' });
     out.push(...items);
+    if (items.length < pageSize) break;
+    offset += pageSize;
+  }
+  return out;
+}
+
+// 全量备份导出用：分页拉取全部未删除书籍的全量字段（详情查询含简介/笔记/录入理由等大字段）。
+// 书单上限 1000 本，按 200/页分页；此前导出走 listAllBooks() 的瘦身查询，这些字段会被丢成空串。
+export async function listAllBooksFull(db: D1Database): Promise<BookListItem[]> {
+  const out: BookListItem[] = [];
+  let offset = 0;
+  const pageSize = 200;
+  for (;;) {
+    const rows = await db
+      .prepare(`${DETAIL_SELECT} WHERE b.deleted_at IS NULL ORDER BY b.title COLLATE NOCASE, b.id LIMIT ? OFFSET ?`)
+      .bind(pageSize, offset)
+      .all<BookRow>();
+    const items = rows.results;
+    if (!items.length) break;
+    const tagMap = await tagsForBooks(
+      db,
+      items.map((r) => r.id),
+    );
+    out.push(...items.map((r) => toBookJson(r, tagMap[r.id] ?? [])));
     if (items.length < pageSize) break;
     offset += pageSize;
   }

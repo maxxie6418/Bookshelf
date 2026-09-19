@@ -3,9 +3,9 @@ import { state } from '../state';
 import type { Book } from '../types';
 import { api } from '../api';
 import { h, toast, iconSearch } from '../ui';
+import { STATUS_OPTIONS, INPUT_CLS } from '../constants';
 
-const inputCls =
-  'w-full px-3.5 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 placeholder:text-[var(--text-muted)] transition-colors';
+const inputCls = INPUT_CLS;
 export const labelCls = 'block text-xs text-[var(--text-secondary)] mb-1.5';
 
 // 元数据抓取返回结构（与 api.fetchMetadata 一致）
@@ -49,6 +49,7 @@ export interface EditForm {
   fetchBar: HTMLElement;
   fetchBtn: HTMLButtonElement;
   doubanUrlField: HTMLDivElement;
+  uploadField: HTMLElement | null; // 编辑态可用的封面上传入口；新增书籍时为 null
   fill(meta: BookMetadata): void;
   collectPayload(): Record<string, unknown>;
   validate(): string | null;
@@ -79,7 +80,7 @@ export function createBookEditForm(book?: Book, opts: { fetchLabel?: string } = 
     favorite: h('input', { type: 'checkbox', class: 'w-4 h-4 rounded accent-[var(--accent)]' }),
   };
 
-  for (const [v, label] of [['unread', '未读'], ['reading', '在读'], ['finished', '读完'], ['shelved', '搁置']] as const) {
+  for (const [v, label] of STATUS_OPTIONS) {
     els.statusSel.append(h('option', { value: v, selected: (book?.status ?? 'unread') === v ? '' : null }, label));
   }
   els.favorite.checked = !!book?.favorite;
@@ -108,10 +109,12 @@ export function createBookEditForm(book?: Book, opts: { fetchLabel?: string } = 
     }
   };
 
+  // 抓取按钮文案单独包 span：避免用 textContent 覆盖整颗按钮时抹掉内嵌的搜索图标
+  const fetchLabelEl = h('span', {}, fetchLabel);
   const fetchBtn = h('button', {
     class: 'shrink-0 px-3 py-2 rounded-xl border border-[var(--border-default)] text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] transition-colors inline-flex items-center gap-1.5',
     onclick: () => void doFetch(els.doubanUrl.value),
-  }, iconSearch(16), fetchLabel);
+  }, iconSearch(16), fetchLabelEl);
 
   const fetchBar = h('div', { class: 'flex gap-2' }, els.doubanUrl, fetchBtn);
   const doubanUrlField = h('div', {},
@@ -119,6 +122,9 @@ export function createBookEditForm(book?: Book, opts: { fetchLabel?: string } = 
     fetchBar,
     h('p', { class: 'text-xs text-[var(--text-muted)] mt-1' }, '可粘贴豆瓣链接（或 ISBN）自动获取元数据'),
   );
+
+  // 上传封面（仅编辑已有书籍时可用：上传走独立端点存 R2，把返回的站内路径填进封面 URL，随表单保存生效）
+  const uploadField: HTMLElement | null = book ? createUploadField(book.id, els.coverUrl) : null;
 
   // 抓取回填：仅回填「当前为空」的字段，已有内容的属性不覆盖，避免清理用户自定义内容。
   // 若希望由系统自动更新某属性，需先清空该输入框再点击抓取。
@@ -170,8 +176,36 @@ export function createBookEditForm(book?: Book, opts: { fetchLabel?: string } = 
 
   function setFetching(fetching: boolean) {
     fetchBtn.disabled = fetching;
-    fetchBtn.textContent = fetching ? fetchingLabel : fetchLabel;
+    fetchLabelEl.textContent = fetching ? fetchingLabel : fetchLabel;
   }
 
-  return { els, fetchBar, fetchBtn, doubanUrlField, fill, collectPayload, validate, setFetching };
+  return { els, fetchBar, fetchBtn, doubanUrlField, uploadField, fill, collectPayload, validate, setFetching };
+}
+
+// 封面上传入口：选择文件 → POST /api/books/:id/cover → 把返回的站内封面路径填入封面 URL 输入框
+function createUploadField(bookId: number, coverUrlEl: HTMLInputElement): HTMLElement {
+  const label = h('span', {}, '上传封面');
+  const file = h('input', { type: 'file', accept: 'image/jpeg,image/png,image/webp,image/gif', class: 'hidden' });
+  const btn = h('button', {
+    class: 'shrink-0 px-3 py-2 rounded-xl border border-[var(--border-default)] text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] transition-colors',
+    onclick: () => file.click(),
+  }, label);
+  file.addEventListener('change', async () => {
+    const f = file.files?.[0];
+    file.value = '';
+    if (!f) return;
+    btn.disabled = true;
+    label.textContent = '上传中…';
+    try {
+      const { cover_url } = await api.uploadCover(bookId, f);
+      coverUrlEl.value = cover_url;
+      toast('封面已上传，点击「保存」生效');
+    } catch (e) {
+      toast((e as Error).message, 'error');
+    } finally {
+      btn.disabled = false;
+      label.textContent = '上传封面';
+    }
+  });
+  return h('div', { class: 'flex items-center gap-2' }, btn, file, h('span', { class: 'text-xs text-[var(--text-muted)]' }, '或直接粘贴外链'));
 }

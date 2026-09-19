@@ -3,23 +3,15 @@ import { api } from '../api';
 import { setState, state } from '../state';
 import type { Book } from '../types';
 import { h, toast, renderCoverPlaceholder, renderStars, iconList, iconGrid, iconEdit, iconPlus, iconBookOpen, iconStar, iconRefresh, iconCheck, iconChevronDown, iconClose, mainDomain } from '../ui';
+import { STATUS_LABEL, STATUS_META, FALLBACK_COLOR } from '../constants';
 import { renderDrawer } from './detail-drawer';
 import { openBookForm } from './book-form';
 import { refresh, refreshBooks, PAGE_SIZE } from '../refresh';
 import { createInlineEditRow, metaToPatch } from './book-inline-edit';
 import type { InlineEditRow } from './book-inline-edit';
 
-const STATUS_LABEL: Record<string, string> = { unread: '未读', reading: '在读', finished: '读完', shelved: '搁置' };
-
 // 批量编辑模式的活动行实例（供工具栏「保存全部」逐行静默保存）
 let batchRows: InlineEditRow[] = [];
-
-const STATUS_META: Record<string, { label: string; dot: string; bg: string; text: string }> = {
-  unread:   { label: '未读',   dot: 'bg-[var(--text-muted)]',                       bg: 'bg-[var(--bg-surface-hover)]',              text: 'text-[var(--text-secondary)]' },
-  reading:  { label: '在读',   dot: 'bg-[var(--accent)] status-reading-dot',       bg: 'bg-[var(--accent)]/10',                     text: 'text-[var(--accent)]' },
-  finished: { label: '已读完', dot: 'bg-[var(--accent)]',                            bg: 'bg-[var(--bg-surface-hover)]',              text: 'text-[var(--text-secondary)]' },
-  shelved:  { label: '搁置',   dot: 'bg-[var(--text-muted)]/50',                     bg: 'bg-[var(--bg-surface-hover)]',              text: 'text-[var(--text-secondary)]' },
-};
 
 function coverEl(b: Book, size: 'grid' | 'table' = 'grid'): HTMLElement {
   if (b.cover_url) {
@@ -46,9 +38,10 @@ async function refreshMeta(b: Book, btn: HTMLButtonElement) {
       toast('书籍属性已填且无空白字段可更新；如需自动更新请先清空对应属性', 'error');
       return;
     }
-    await api.updateBook(b.id, patch);
+    // 用 PATCH 响应做本地 patch（元数据字段不影响侧栏统计），避免全量刷新
+    const updated = await api.updateBook(b.id, patch);
     toast(`已刷新《${b.title}》`);
-    await refresh(false, false);
+    patchBookLocal(b.id, updated);
   } catch (e) {
     toast((e as Error).message, 'error');
   } finally {
@@ -114,18 +107,6 @@ function updateFavoriteButton(btn: HTMLButtonElement, favorite: number, isGrid: 
   }
 }
 
-// 快捷改状态
-async function quickStatus(b: Book, status: string) {
-  try {
-    await api.updateBook(b.id, { status: status as Book['status'] });
-    toast('状态已更新');
-    patchBookLocal(b.id, { status: status as Book['status'] });
-    await refresh(false, false);
-  } catch (e) {
-    toast((e as Error).message, 'error');
-  }
-}
-
 // 快捷收藏/取消收藏
 export async function quickFavorite(b: Book, btn?: HTMLButtonElement, isGrid = false) {
   try {
@@ -188,9 +169,11 @@ document.addEventListener('keydown', (e) => {
 export function renderBookList(container: HTMLElement) {
   container.replaceChildren();
   closeOpenSortMenu();
-  // 非表格视图 / 无数据 / 加载骨架时批量编辑态无意义，直接退出（避免额外渲染回路）
+  // 非表格视图 / 无数据 / 加载骨架时批量编辑态无意义，直接退出（避免额外渲染回路）。
+  // 用 setState 触发重渲染而不是渲染回路内静默改 state；本次调用直接返回，交给重渲染完成。
   if (state.batchEdit && (state.view !== 'table' || state.books.length === 0 || state.loading)) {
-    state.batchEdit = false;
+    setState({ batchEdit: false });
+    return;
   }
   const main = h('div', { class: 'p-4 sm:p-6 lg:p-8' });
 
@@ -238,7 +221,7 @@ export function renderBookList(container: HTMLElement) {
   );
   sortWrap.append(sortBtn, sortMenu);
 
-  const viewToggle = h('div', { class: 'hidden sm:flex items-center bg-[var(--bg-page)] rounded-lg p-1' },
+  const viewToggle = h('div', { class: 'flex items-center bg-[var(--bg-page)] rounded-lg p-1' },
     h('button', {
       class: 'p-1.5 rounded-md transition-all text-[var(--text-secondary)] ' + (state.view === 'table'
         ? 'bg-[var(--bg-surface)] border border-[var(--border-default)] shadow-sm'
@@ -260,12 +243,12 @@ export function renderBookList(container: HTMLElement) {
     onclick: () => openBookForm(),
   }, iconPlus(18), '添加书籍');
 
-  // 批量编辑入口：固定在排序下拉左侧占位（移动端仍隐藏）。表格视图可用，网格/空列表时置灰禁用，
+  // 批量编辑入口：固定在排序下拉左侧占位（移动端可见）。表格视图可用，网格/空列表时置灰禁用，
   // 避免切换视图时按钮出现/消失导致工具栏推挤；批量态隐藏，由「保存全部/退出」接管。
   const inBatch = state.batchEdit;
   const canBatchEdit = !inBatch && state.view === 'table' && state.books.length > 0;
   const batchEditBtn = h('button', {
-    class: (inBatch ? 'hidden' : 'hidden sm:inline-flex') +
+    class: (inBatch ? 'hidden' : 'inline-flex') +
       ' items-center gap-1.5 px-3 py-2 border rounded-lg text-sm transition-all ' +
       (canBatchEdit
         ? 'border-[var(--border-default)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--accent)]'
@@ -274,11 +257,12 @@ export function renderBookList(container: HTMLElement) {
     disabled: canBatchEdit ? undefined : 'disabled',
     onclick: () => { if (canBatchEdit) setState({ batchEdit: true }); },
   }, iconEdit(18), '编辑');
+  const saveAllLabel = h('span', {}, '保存全部');
   const saveAllBtn = h('button', {
     class: 'inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--accent)] text-[var(--accent)] rounded-lg hover:bg-[var(--accent)]/10 transition-all text-sm font-medium ' + (inBatch ? 'inline-flex' : 'hidden'),
     title: '保存当前页全部修改',
-    onclick: (e: Event) => void saveAllBatch(e.currentTarget as HTMLButtonElement),
-  }, iconCheck(16), '保存全部');
+    onclick: (e: Event) => void saveAllBatch(e.currentTarget as HTMLButtonElement, saveAllLabel),
+  }, iconCheck(16), saveAllLabel);
   const cancelAllBtn = h('button', {
     class: 'inline-flex items-center gap-1.5 px-3 py-2 border border-[var(--border-default)] text-[var(--text-secondary)] rounded-lg hover:bg-[var(--bg-surface-hover)] transition-all text-sm ' + (inBatch ? 'inline-flex' : 'hidden'),
     title: '放弃修改并退出批量编辑',
@@ -294,7 +278,7 @@ export function renderBookList(container: HTMLElement) {
     { value: 'finished', label: '读完' },
     { value: 'shelved', label: '搁置' },
   ];
-  const statusGroup = h('div', { class: 'hidden md:flex items-center gap-1 bg-[var(--bg-page)] rounded-lg p-0.5 border border-[var(--border-default)]' });
+  const statusGroup = h('div', { class: 'flex flex-wrap items-center gap-1 bg-[var(--bg-page)] rounded-lg p-0.5 border border-[var(--border-default)]' });
   for (const s of statusButtons) {
     const active = (state.filters.status ?? 'all') === s.value;
     statusGroup.append(h('button', {
@@ -313,7 +297,7 @@ export function renderBookList(container: HTMLElement) {
   // 收藏过滤：独立按钮（不与状态按钮混排），仅收藏时点亮星标
   const favActive = !!state.filters.favorite;
   const favBtn = h('button', {
-    class: 'hidden md:inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-sm font-medium border transition-all shrink-0 ' +
+    class: 'inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-sm font-medium border transition-all shrink-0 ' +
       (favActive
         ? 'border-[var(--accent)] text-[var(--accent)] bg-[var(--accent)]/10 shadow-sm'
         : 'border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--accent)] hover:border-[var(--accent)]/40'),
@@ -328,7 +312,7 @@ export function renderBookList(container: HTMLElement) {
     // 列表头栏
     h('div', { class: 'sticky top-16 z-30 bg-[var(--bg-page)] border-b border-[var(--border-default)] -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-3 mb-4' },
       h('div', { class: 'flex items-center justify-between gap-3 flex-wrap' },
-        h('div', { class: 'flex items-center gap-3 min-w-0' },
+        h('div', { class: 'flex flex-wrap items-center gap-3 min-w-0' },
           h('h2', { class: 'text-lg font-semibold font-display text-[var(--text-primary)] whitespace-nowrap' }, viewTitle),
           h('span', { class: 'text-sm text-[var(--text-muted)] whitespace-nowrap' }, `${state.total} 本`),
           statusGroup,
@@ -337,7 +321,7 @@ export function renderBookList(container: HTMLElement) {
         h('div', { class: 'flex items-center gap-2' },
           batchEditBtn,
           sortWrap,
-          inBatch ? h('div', { class: 'hidden sm:flex items-center gap-2' }, saveAllBtn, cancelAllBtn)
+          inBatch ? h('div', { class: 'flex items-center gap-2' }, saveAllBtn, cancelAllBtn)
             : h('div', { class: 'flex items-center gap-2' }, viewToggle, h('div', { class: 'w-px h-6 mx-1 bg-[var(--border-subtle)] hidden sm:block' }), addBtn),
         ),
       ),
@@ -380,11 +364,17 @@ function hasActiveFilters(): boolean {
 
 function clearFilters() {
   setState({ filters: { sort: state.filters.sort } });
+  // 同步清空桌面/移动搜索框显示，避免输入框残留旧关键字
+  for (const id of ['search-desktop', 'search-mobile']) {
+    const el = document.getElementById(id) as HTMLInputElement | null;
+    if (el) el.value = '';
+  }
   void refreshBooks();
 }
 
 // 批量编辑「保存全部」：仅保存有改动的行；无改动行跳过。按钮进入加载态防重复提交。
-async function saveAllBatch(btn: HTMLButtonElement) {
+// 仅更新文案 span，不整颗按钮覆盖 textContent，避免把内嵌 SVG 图标抹掉。
+async function saveAllBatch(btn: HTMLButtonElement, labelEl: HTMLElement) {
   const rows = batchRows;
   let saved = 0;
   let skipped = 0;
@@ -397,9 +387,9 @@ async function saveAllBatch(btn: HTMLButtonElement) {
     toast('没有修改的内容');
     return;
   }
-  const originalText = btn.textContent ?? '';
+  const originalText = labelEl.textContent ?? '';
   btn.disabled = true;
-  btn.textContent = '保存中…';
+  labelEl.textContent = '保存中…';
   try {
     for (const inline of dirtyRows) {
       try {
@@ -412,7 +402,7 @@ async function saveAllBatch(btn: HTMLButtonElement) {
     }
   } finally {
     btn.disabled = false;
-    btn.textContent = originalText;
+    labelEl.textContent = originalText;
   }
   setState({ batchEdit: false });
   await refresh(false, false);
@@ -515,6 +505,10 @@ function renderListContent(list: HTMLElement) {
     list.append(state.view === 'table' ? renderSkeletonTable() : renderSkeletonGrid());
     return;
   }
+  if (state.listError) {
+    list.append(renderErrorState());
+    return;
+  }
   if (!state.books.length) {
     list.append(renderEmptyState());
     return;
@@ -525,6 +519,19 @@ function renderListContent(list: HTMLElement) {
     const pag = renderPagination();
     if (pag) list.append(pag);
   }
+}
+
+// 加载失败态：与「空书架」区分开，提供重试入口
+function renderErrorState(): HTMLElement {
+  return h('div', { class: 'flex flex-col items-center justify-center py-20 text-center' },
+    h('div', { class: 'mb-5 text-red-400' }, iconBookOpen(64)),
+    h('h3', { class: 'text-base font-semibold font-display text-[var(--text-primary)] mb-1' }, '加载失败'),
+    h('p', { class: 'text-sm text-[var(--text-secondary)] max-w-xs' }, '网络异常或服务暂时不可用，请稍后重试'),
+    h('button', {
+      class: 'mt-5 inline-flex items-center gap-2 px-4 py-2 border border-[var(--accent)] text-[var(--accent)] rounded-lg hover:bg-[var(--accent)]/10 transition-all font-medium text-sm',
+      onclick: () => void refresh(false, false),
+    }, iconRefresh(16), '重新加载'),
+  );
 }
 
 // 翻页控件：上一页 / 页码指示 / 下一页
@@ -607,7 +614,7 @@ function renderBookRow(b: Book): HTMLTableRowElement {
     h('td', { class: 'px-4 py-2 align-middle whitespace-nowrap min-w-[10em]' },
       b.category_name
         ? h('span', { class: 'inline-flex items-center gap-1.5 text-sm text-[var(--text-secondary)]', title: b.category_name },
-            h('span', { class: 'w-2.5 h-2.5 rounded-sm', style: `background:${b.category_color ?? '#8a8274'}` }),
+            h('span', { class: 'w-2.5 h-2.5 rounded-sm', style: `background:${b.category_color ?? FALLBACK_COLOR}` }),
             b.category_name,
           )
         : '',
@@ -698,8 +705,18 @@ function renderBatchTable(): HTMLElement {
   return wrap;
 }
 
+// 网格入场动画只在书籍集合真正变化时播放（比较当前列表签名），
+// 避免切主题、开关设置等无关重渲染时对全部卡片反复重放动画
+let lastGridSig = '';
+function gridSignature(): string {
+  return `${state.books.map((b) => b.id).join(',')}|${state.filters.status ?? ''}|${state.filters.tag ?? ''}|${state.filters.categoryId ?? ''}|${state.page}`;
+}
+
 function renderGrid(): HTMLElement {
-  const grid = h('div', { class: 'view-grid grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-3 sm:gap-4 lg:gap-5' });
+  const sig = gridSignature();
+  const animate = sig !== lastGridSig;
+  lastGridSig = sig;
+  const grid = h('div', { class: 'view-grid grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-3 sm:gap-4 lg:gap-5' + (animate ? ' animate-in' : '') });
   for (const b of state.books) {
     const card = h('div', {
       class: "book-card group cursor-pointer relative bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-xl shadow-paper hover:shadow-float hover:-translate-y-0.5 transition-all duration-300",
@@ -713,7 +730,7 @@ function renderGrid(): HTMLElement {
           : null,
         h('button', {
           class: 'absolute top-2 left-2 z-10 p-1.5 rounded-full bg-[var(--bg-surface)]/90 backdrop-blur-sm shadow-sm border transition-all ' +
-            (b.favorite ? 'text-[var(--accent)] border-[var(--accent)]/50' : 'text-[var(--text-muted)] border-[var(--border-default)] opacity-0 group-hover:opacity-100 hover:text-[var(--accent)]'),
+            (b.favorite ? 'text-[var(--accent)] border-[var(--accent)]/50' : 'text-[var(--text-muted)] border-[var(--border-default)] opacity-0 group-hover:opacity-100 hover:text-[var(--accent)] [@media(hover:none)]:opacity-100'),
           title: b.favorite ? '取消收藏' : '收藏',
           onclick: (e: Event) => { e.stopPropagation(); void quickFavorite(b, e.currentTarget as HTMLButtonElement, true); },
         }, iconStar(16)),

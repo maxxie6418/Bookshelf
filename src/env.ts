@@ -11,7 +11,5 @@ export interface Env {
 
   // Secrets（wrangler secret put，不入库）
   SESSION_SECRET: string;
-  AI_BASE_URL?: string;
-  AI_API_KEY?: string;
   INITIAL_ADMIN_PASSWORD?: string;
 }

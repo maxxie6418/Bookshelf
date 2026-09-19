@@ -3,6 +3,7 @@ import { state } from '../state';
 import type { Book } from '../types';
 import { api } from '../api';
 import { h, toast, iconCheck, iconClose, renderCoverPlaceholder, mainDomain } from '../ui';
+import { STATUS_OPTIONS } from '../constants';
 import type { BookMetadata } from './book-edit-form';
 
 export interface InlineEditHandlers {
@@ -18,13 +19,6 @@ export interface InlineEditRow {
   isDirty: () => boolean;
   markClean: () => void;
 }
-
-const STATUS_OPTIONS: [Book['status'], string][] = [
-  ['unread', '未读'],
-  ['reading', '在读'],
-  ['finished', '读完'],
-  ['shelved', '搁置'],
-];
 
 const inputCls =
   'px-2 py-1.5 rounded-lg border border-[var(--border-default)] bg-[var(--bg-page)] text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 placeholder:text-[var(--text-muted)] transition-colors';

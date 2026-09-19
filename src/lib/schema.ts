@@ -3,6 +3,8 @@
 // 使「Deploy to Cloudflare」等不跑迁移命令的部署方式也能开箱即用。
 // 注意：逐条语句用 env.DB.batch() 执行（miniflare 的 exec 不支持多行多语句字符串）；
 // 后续增量迁移请以 migrations/ 目录为准，勿在本文追加新表定义。
+// 清理说明（v1.3.0）：settings / ai_query_log 表与 books.original_title 列从未被业务代码使用，
+// 已从全新建库 DDL 中移除；存量库中的同名表/列保留不动（无读写方，无兼容风险），迁移历史文件不修改。
 export const SCHEMA_STATEMENTS: string[] = [
   `CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -15,6 +17,9 @@ export const SCHEMA_STATEMENTS: string[] = [
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 )`,
 
+  // username 唯一约束：防并发 seed 竞态插入重复 admin 行（存量库由 bootstrap 的幂等 ensure 补建）
+  'CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users(username)',
+
   `CREATE TABLE IF NOT EXISTS books (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   title TEXT NOT NULL,
@@ -23,7 +28,6 @@ export const SCHEMA_STATEMENTS: string[] = [
   publisher TEXT,
   publish_year INTEGER,
   page_count INTEGER,
-  original_title TEXT,
   isbn TEXT,
   description TEXT,
   notes TEXT,
@@ -67,21 +71,5 @@ export const SCHEMA_STATEMENTS: string[] = [
   book_id INTEGER NOT NULL REFERENCES books(id) ON DELETE CASCADE,
   tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
   PRIMARY KEY (book_id, tag_id)
-)`,
-
-  `CREATE TABLE IF NOT EXISTS settings (
-  key TEXT PRIMARY KEY,
-  value TEXT,
-  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-)`,
-
-  `CREATE TABLE IF NOT EXISTS ai_query_log (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  query_text TEXT,
-  filter_json TEXT,
-  row_count INTEGER,
-  ip TEXT,
-  ok INTEGER NOT NULL DEFAULT 1,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
 )`,
 ];

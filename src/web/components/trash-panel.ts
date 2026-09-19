@@ -1,8 +1,8 @@
 // 回收站视图：恢复 / 彻底删除（二次确认）/ 清空
 import { api } from '../api';
-import { state } from '../state';
+import { setState, state } from '../state';
 import type { Book } from '../types';
-import { h, toast, confirmDialog, iconTrash } from '../ui';
+import { h, toast, confirmDialog, iconTrash, iconChevronLeft } from '../ui';
 import { refresh } from '../refresh';
 
 export function renderTrash(container: HTMLElement) {
@@ -26,8 +26,16 @@ export function renderTrash(container: HTMLElement) {
   }, '清空回收站');
 
   main.append(
-    h('div', { class: 'flex items-center justify-between mb-4' },
-      h('div', { class: 'flex items-center gap-3' },
+    h('div', { class: 'flex items-center justify-between mb-4 gap-3 flex-wrap' },
+      h('div', { class: 'flex items-center gap-3 min-w-0' },
+        h('button', {
+          class: 'p-2 rounded-lg text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)] transition-colors shrink-0',
+          title: '返回书架',
+          onclick: () => {
+            setState({ viewMode: 'main' });
+            void refresh();
+          },
+        }, iconChevronLeft(20)),
         h('h2', { class: 'text-lg font-semibold font-display text-[var(--text-primary)]' }, '回收站'),
         h('span', { class: 'text-sm text-[var(--text-muted)]' }, `共 ${state.total} 本，彻底删除后不可恢复`),
       ),
@@ -38,6 +46,16 @@ export function renderTrash(container: HTMLElement) {
   const list = h('div', { class: 'space-y-2' });
   if (state.loading) {
     list.append(h('div', { class: 'text-center text-[var(--text-muted)] py-10' }, '加载中…'));
+  } else if (state.listError) {
+    list.append(
+      h('div', { class: 'flex flex-col items-center justify-center py-16 text-center' },
+        h('p', { class: 'text-sm text-[var(--text-secondary)] mb-3' }, '回收站加载失败，请稍后重试'),
+        h('button', {
+          class: 'px-4 py-2 border border-[var(--accent)] text-[var(--accent)] rounded-lg hover:bg-[var(--accent)]/10 transition-all text-sm font-medium',
+          onclick: () => void refresh(false, false),
+        }, '重新加载'),
+      ),
+    );
   } else if (!state.books.length) {
     list.append(
       h('div', { class: 'col-span-full flex flex-col items-center justify-center py-20 text-[var(--text-muted)]' },

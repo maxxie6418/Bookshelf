@@ -88,7 +88,7 @@ export interface StorageCleanupResult {
 }
 
 export interface Filters {
-  status?: string;
+  status?: Book['status'];
   favorite?: boolean;
   categoryId?: number;
   tag?: string;

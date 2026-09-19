@@ -56,7 +56,7 @@ function rowToPrepared(r: Record<string, string>): PreparedBook {
     description: r['简介']?.trim() || null,
     notes: r['记录']?.trim() || null,
     reason: r['录入理由']?.trim() || null,
-    cover_url: null,
+    cover_url: r['封面']?.trim() || null,
     douban_url: r['豆瓣链接']?.trim() || null,
     rating: num(r['评分']),
     status: normalizeStatus(r['状态'] ?? '') ?? 'unread',
@@ -71,13 +71,45 @@ function err(c: { json: (v: unknown, s?: number) => Response }, code: string, me
   return c.json({ error: { code, message } }, status);
 }
 
+// CSV 原文与解析行数上限：与产品「≤1000 本」的规模约定对齐，防止超大输入耗尽 Worker CPU
+const CSV_MAX_BYTES = 2_000_000;
+const CSV_MAX_ROWS = 1000;
+const BATCH_MAX_ITEMS = 50;
+
+// 批量写入条目的完整校验：字段与 preview 生成的 PreparedBook 对齐，长度上限与书籍创建 schema 一致。
+// 此前 batch 端点零校验（z.record(z.any()) 直通），非法 status/超长字段会打到 D1 约束异常变 500。
+const importBookSchema = z.object({
+  title: z.string().min(1, '书名必填').max(500, '书名过长'),
+  author: z.string().max(300).nullable(),
+  translator: z.string().max(300).nullable(),
+  publisher: z.string().max(300).nullable(),
+  publish_year: z.number().int().nullable(),
+  page_count: z.number().int().nullable(),
+  subtitle: z.string().max(500).nullable(),
+  isbn: z.string().max(20).nullable(),
+  description: z.string().max(10000, '简介过长').nullable(),
+  notes: z.string().max(2000, '记录最多 2000 字').nullable(),
+  reason: z.string().max(1000, '录入理由最多 1000 字').nullable(),
+  cover_url: z.string().max(2048).regex(/^(https?:\/\/|\/api\/covers\/)/, '封面需为 http(s) 链接或站内封面路径').nullable(),
+  douban_url: z.string().max(2048).regex(/^https?:\/\//, '链接需以 http(s):// 开头').nullable(),
+  rating: z.number().min(0).max(10, '评分为 0-10').nullable(),
+  status: z.enum(['unread', 'reading', 'finished', 'shelved']),
+  favorite: z.union([z.literal(0), z.literal(1)]),
+  category: z.string().max(100).nullable(),
+  tags: z.array(z.string().min(1).max(50)).max(20, '标签最多 20 个'),
+  created_at: z.string().max(30).nullable(),
+});
+
 // POST /api/import/books/preview —— 解析 CSV，逐行规范化 + 重复检测
 importRoutes.post('/books/preview', async (c) => {
   const body = await c.req.json().catch(() => null);
-  const parsed = z.object({ csv: z.string() }).safeParse(body);
-  if (!parsed.success) return err(c, 'VALIDATION_ERROR', '缺少或者非法的 csv 内容');
+  const parsed = z.object({ csv: z.string().max(CSV_MAX_BYTES, 'CSV 内容过大（上限约 2MB）') }).safeParse(body);
+  if (!parsed.success) return err(c, 'VALIDATION_ERROR', parsed.error.issues[0]?.message ?? '缺少或者非法的 csv 内容');
 
   const rows = parseCsvRows(parsed.data.csv);
+  if (rows.length > CSV_MAX_ROWS) {
+    return err(c, 'VALIDATION_ERROR', `单次最多导入 ${CSV_MAX_ROWS} 行，请拆分文件`);
+  }
   const meta = await mapExistingByKey(c.env.DB);
 
   const result = rows.map((r, i) => {
@@ -119,13 +151,19 @@ importRoutes.post('/books/preview', async (c) => {
   });
 });
 
-// POST /api/import/books/batch —— 写入一批（≤50）选中的书籍
+// POST /api/import/books/batch —— 写入一批（≤50）选中的书籍（逐条完整校验）
 importRoutes.post('/books/batch', async (c) => {
   const body = await c.req.json().catch(() => null);
-  const parsed = z.object({ imports: z.array(z.record(z.any())).max(50) }).safeParse(body);
-  if (!parsed.success) return err(c, 'VALIDATION_ERROR', '非法的导入数据');
+  const parsed = z.object({ imports: z.array(importBookSchema).max(BATCH_MAX_ITEMS, `单批最多 ${BATCH_MAX_ITEMS} 条`) }).safeParse(body);
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    // path 形如 ['imports', 0, 'status']：取其中的数组下标定位第几条
+    const idx = issue?.path?.find((seg) => typeof seg === 'number');
+    const where = idx != null ? `第 ${idx + 1} 条：` : '';
+    return err(c, 'VALIDATION_ERROR', `非法的导入数据（${where}${issue?.message ?? '字段校验失败'}）`);
+  }
 
-  const imps = parsed.data.imports as unknown as PreparedBook[];
+  const imps: PreparedBook[] = parsed.data.imports;
   if (!imps.length) return c.json({ created: 0 });
 
   const catCache = new Map<string, number>();
