@@ -595,14 +595,15 @@ function renderBookRow(b: Book): HTMLTableRowElement {
   );
   row.append(
     coverCell,
-    // 书名：截断防撑宽，hover 显示完整标题
+    // 书名/副标题：自动列宽表格里 w-[80%] 是循环引用、拦不住长文本撑列，
+    // 必须用像素级 max-w 硬上限（与行内编辑行一致），超出截断，完整内容看 hover 提示或详情抽屉
     h('td', { class: 'px-4 py-2 align-middle' },
-      h('div', { class: 'w-[80%] font-medium text-sm font-display text-[var(--text-primary)] truncate', title: b.title }, b.title),
-      b.subtitle ? h('div', { class: 'w-[80%] text-xs text-[var(--text-muted)] truncate', title: b.subtitle }, b.subtitle) : null,
+      h('div', { class: 'max-w-[240px] font-medium text-sm font-display text-[var(--text-primary)] truncate', title: b.title }, b.title),
+      b.subtitle ? h('div', { class: 'max-w-[240px] text-xs text-[var(--text-muted)] truncate', title: b.subtitle }, b.subtitle) : null,
     ),
     // 作者：截断防撑宽，hover 显示完整
     h('td', { class: 'px-4 py-2 align-middle' },
-      h('span', { class: 'block w-[80%] text-sm text-[var(--text-secondary)] truncate', title: b.author ?? '' }, b.author ?? ''),
+      h('span', { class: 'block max-w-[150px] text-sm text-[var(--text-secondary)] truncate', title: b.author ?? '' }, b.author ?? ''),
     ),
     h('td', { class: 'px-4 py-2 align-middle' },
       h('span', { class: `inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${meta.bg} ${meta.text}` },

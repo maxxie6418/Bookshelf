@@ -182,12 +182,13 @@ export function createBookEditForm(book?: Book, opts: { fetchLabel?: string } = 
   return { els, fetchBar, fetchBtn, doubanUrlField, uploadField, fill, collectPayload, validate, setFetching };
 }
 
-// 封面上传入口：选择文件 → POST /api/books/:id/cover → 把返回的站内封面路径填入封面 URL 输入框
+// 封面上传入口：选择文件 → POST /api/books/:id/cover → 把返回的站内封面路径填入封面 URL 输入框。
+// 用强调色边框与其他中性按钮区分，避免在长表单中被忽略
 function createUploadField(bookId: number, coverUrlEl: HTMLInputElement): HTMLElement {
   const label = h('span', {}, '上传封面');
   const file = h('input', { type: 'file', accept: 'image/jpeg,image/png,image/webp,image/gif', class: 'hidden' });
   const btn = h('button', {
-    class: 'shrink-0 px-3 py-2 rounded-xl border border-[var(--border-default)] text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] transition-colors',
+    class: 'shrink-0 px-3 py-2 rounded-xl border border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--accent)]/10 transition-colors text-sm font-medium',
     onclick: () => file.click(),
   }, label);
   file.addEventListener('change', async () => {
