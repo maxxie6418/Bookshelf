@@ -147,8 +147,9 @@ body {
   transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
+/* 抽屉/弹窗遮罩：仅保留极轻微的虚化，保证背景内容仍可辨认 */
 .modal-backdrop {
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(2px);
   background-color: var(--overlay-bg);
 }
 .dark .modal-backdrop {
