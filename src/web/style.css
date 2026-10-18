@@ -149,7 +149,7 @@ body {
 
 /* 抽屉/弹窗遮罩：仅保留极轻微的虚化，保证背景内容仍可辨认 */
 .modal-backdrop {
-  backdrop-filter: blur(2px);
+  backdrop-filter: blur(1px);
   background-color: var(--overlay-bg);
 }
 .dark .modal-backdrop {
